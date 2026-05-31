@@ -1,17 +1,15 @@
 package com.hibol.miette.soi.data.db
 
 import com.hibol.miette.soi.data.entity.Emotion
+import com.hibol.miette.soi.data.repository.EmotionRepository
 import kotlinx.coroutines.flow.first
 
 object DatabaseInitializer {
 
-    suspend fun populate(db: SoiDatabase) {
-        val emotionDao = db.emotionDao()
-        val existing = emotionDao.getAllEmotions().first()
+    suspend fun populate(emotionRepository: EmotionRepository) {
+        val existing = emotionRepository.getAllEmotions().first()
         if (existing.isNotEmpty()) return
-
-        val emotions = buildEmotionList()
-        emotionDao.insertAll(emotions)
+        emotionRepository.insertAll(buildEmotionList())
     }
 
     private fun buildEmotionList(): List<Emotion> {
