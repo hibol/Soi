@@ -27,4 +27,7 @@ data class Entry(
     val text: String? = null,
     val extraData: String? = null,  // JSON libre, V2
     val updatedAt: Long = System.currentTimeMillis()
-)
+) {
+    val type: EntryType
+        get() = EntryType.entries.find { it.value == entryType } ?: throw IllegalStateException("Type d'entrée inconnu : $entryType")
+}

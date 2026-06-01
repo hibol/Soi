@@ -23,27 +23,31 @@ object DatabaseInitializer {
         val primaries = listOf(
             Primary("Joie", "#F9C74F", 1.0, listOf(
                 "Jouissance", "Espoir", "Fierté", "Amusement",
-                "Inspiration", "Sérénité", "Gratitude", "Admiration", "Amour"
+                "Inspiration", "Sérénité", "Gratitude", "Admiration", "Amour",
+                "Émerveillement", "Excitation", "Délice", "Satisfaction",
+                "Encouragement", "Contentement", "Tendresse", "Foi", "Présence"
             )),
             Primary("Surprise", "#90BE6D", null, listOf(
-                "Émerveillement", "Excitation", "Stupéfaction",
-                "Confusion", "Incrédulité", "Effroi"
+                "Stupéfaction", "Confusion", "Incrédulité", "Choc"
             )),
             Primary("Peur", "#9B5DE5", -1.0, listOf(
-                "Horreur", "Nervosité", "Inquiétude",
-                "Terreur", "Méfiance", "Appréhension", "Anxiété"
+                "Horreur", "Nervosité", "Inquiétude", "Terreur",
+                "Méfiance", "Appréhension", "Anxiété", "Effroi",
+                "Gêne", "Insécurité"
             )),
             Primary("Tristesse", "#4895EF", -1.0, listOf(
                 "Souffrance", "Mélancolie", "Désespoir", "Solitude",
-                "Honte", "Culpabilité", "Dépression", "Ennui"
-            )),
-            Primary("Dégoût", "#43AA8B", -1.0, listOf(
-                "Répulsion", "Aversion", "Mépris",
-                "Pitié", "Gêne", "Remords"
+                "Honte", "Culpabilité", "Dépression", "Ennui",
+                "Remords", "Apathie", "Infériorité", "Inadéquation", "Pitié"
             )),
             Primary("Colère", "#F94144", -1.0, listOf(
                 "Agacement", "Jalousie", "Exaspération", "Rancœur",
-                "Dégoût de soi", "Blessure", "Menace", "Haine", "Rage"
+                "Dégoût de soi", "Blessure", "Menace", "Haine", "Rage",
+                "Répulsion", "Mépris", "Aversion", "Frustration",
+                "Hostilité", "Irritation", "Condescendance"
+            )),
+            Primary("Puissance", "#FF9F1C", 1.0, listOf(
+                "Confiance", "Créativité", "Courage", "Valorisation", "Reconnaissance"
             ))
         )
 
