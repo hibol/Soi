@@ -16,7 +16,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.hibol.miette.soi.data.entity.Entry
-import com.hibol.miette.soi.ui.screens.home.EntryTypePicker
+import com.hibol.miette.soi.data.entity.EntryType
 import com.hibol.miette.soi.ui.theme.extendedColorScheme
 import com.hibol.miette.soi.ui.theme.colorFamilyForType
 import java.time.Instant
@@ -31,7 +31,7 @@ fun DaySheet(
     date: LocalDate,
     entries: List<Entry>,
     onEntryClick: (Long) -> Unit,
-    onNewEntry: (String, LocalDate) -> Unit,
+    onNewEntry: (EntryType, LocalDate) -> Unit,
     onDismiss: () -> Unit
 ) {
     val extended = extendedColorScheme()
@@ -43,7 +43,7 @@ fun DaySheet(
         EntryTypePicker(
             onTypeSelected = { type ->
                 showTypePicker = false
-                onNewEntry(type.value, date)
+                onNewEntry(type, date)
             },
             onDismiss = { showTypePicker = false }
         )

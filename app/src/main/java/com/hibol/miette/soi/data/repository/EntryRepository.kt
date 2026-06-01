@@ -3,8 +3,11 @@ package com.hibol.miette.soi.data.repository
 import com.hibol.miette.soi.data.db.SoiDatabase
 import com.hibol.miette.soi.data.entity.*
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 
 class EntryRepository(private val db: SoiDatabase) {
+
+    // ── Lecture ──────────────────────────────────────────────────────────────
 
     fun getAllByProfile(profileId: Long): Flow<List<Entry>> =
         db.entryDao().getAllByProfile(profileId)
@@ -18,15 +21,25 @@ class EntryRepository(private val db: SoiDatabase) {
     fun getById(id: Long): Flow<Entry?> =
         db.entryDao().getById(id)
 
+    fun getEmotionsForEntry(entryId: Long): Flow<List<EntryEmotion>> =
+        db.entryEmotionDao().getByEntry(entryId)
+
+    fun getTagsForEntry(entryId: Long): Flow<List<Tag>> =
+        db.entryTagDao().getTagsForEntry(entryId)
+
+    fun getDreamDetail(entryId: Long): Flow<DreamEntry?> =
+        db.dreamEntryDao().getById(entryId)
+
+    // ── Création ─────────────────────────────────────────────────────────────
+
     suspend fun createDreamEntry(
         profileId: Long,
         entryDate: Long,
         text: String?,
         memoryQuality: String,
-        emotionIds: List<Pair<Long, Int>>,  // Pair(emotionId, intensity)
+        emotionIds: List<Pair<Long, Int>>,
         tagLabels: List<String>
     ): Long {
-        // 1. Créer l'Entry de base
         val entryId = db.entryDao().insert(
             Entry(
                 profileId = profileId,
@@ -35,21 +48,8 @@ class EntryRepository(private val db: SoiDatabase) {
                 text = text
             )
         )
-
-        // 2. Créer la table satellite
         db.dreamEntryDao().insert(DreamEntry(id = entryId, memoryQuality = memoryQuality))
-
-        // 3. Lier les émotions
-        emotionIds.forEach { (emotionId, intensity) ->
-            db.entryEmotionDao().insert(EntryEmotion(entryId = entryId, emotionId = emotionId, intensity = intensity))
-        }
-
-        // 4. Lier les tags
-        tagLabels.forEach { label ->
-            val tagId = TagRepository(db).getOrCreate(label)
-            db.entryTagDao().insert(EntryTag(entryId = entryId, tagId = tagId))
-        }
-
+        saveEmotionsAndTags(entryId, emotionIds, tagLabels)
         return entryId
     }
 
@@ -68,20 +68,8 @@ class EntryRepository(private val db: SoiDatabase) {
                 text = text
             )
         )
-
         db.sessionEntryDao().insert(SessionEntry(id = entryId))
-
-        emotionIds.forEach { (emotionId, intensity) ->
-            db.entryEmotionDao().insert(
-                EntryEmotion(entryId = entryId, emotionId = emotionId, intensity = intensity)
-            )
-        }
-
-        tagLabels.forEach { label ->
-            val tagId = TagRepository(db).getOrCreate(label)
-            db.entryTagDao().insert(EntryTag(entryId = entryId, tagId = tagId))
-        }
-
+        saveEmotionsAndTags(entryId, emotionIds, tagLabels)
         return entryId
     }
 
@@ -100,23 +88,99 @@ class EntryRepository(private val db: SoiDatabase) {
                 text = text
             )
         )
-
         db.eventEntryDao().insert(EventEntry(id = entryId))
+        saveEmotionsAndTags(entryId, emotionIds, tagLabels)
+        return entryId
+    }
 
+    // ── Mise à jour ───────────────────────────────────────────────────────────
+
+    suspend fun updateDreamEntry(
+        entryId: Long,
+        text: String?,
+        memoryQuality: String,
+        entryDate: Long,
+        emotionIds: List<Pair<Long, Int>>,
+        tagLabels: List<String>
+    ) {
+        val existing = db.entryDao().getById(entryId).first() ?: return
+        db.entryDao().update(
+            existing.copy(
+                text = text,
+                entryDate = entryDate,
+                updatedAt = System.currentTimeMillis()
+            )
+        )
+        db.dreamEntryDao().update(DreamEntry(id = entryId, memoryQuality = memoryQuality))
+        replaceEmotionsAndTags(entryId, emotionIds, tagLabels)
+    }
+
+    suspend fun updateSessionEntry(
+        entryId: Long,
+        text: String?,
+        entryDate: Long,
+        emotionIds: List<Pair<Long, Int>>,
+        tagLabels: List<String>
+    ) {
+        val existing = db.entryDao().getById(entryId).first() ?: return
+        db.entryDao().update(
+            existing.copy(
+                text = text,
+                entryDate = entryDate,
+                updatedAt = System.currentTimeMillis()
+            )
+        )
+        replaceEmotionsAndTags(entryId, emotionIds, tagLabels)
+    }
+
+    suspend fun updateEventEntry(
+        entryId: Long,
+        text: String?,
+        entryDate: Long,
+        emotionIds: List<Pair<Long, Int>>,
+        tagLabels: List<String>
+    ) {
+        val existing = db.entryDao().getById(entryId).first() ?: return
+        db.entryDao().update(
+            existing.copy(
+                text = text,
+                entryDate = entryDate,
+                updatedAt = System.currentTimeMillis()
+            )
+        )
+        replaceEmotionsAndTags(entryId, emotionIds, tagLabels)
+    }
+
+    // ── Suppression ───────────────────────────────────────────────────────────
+
+    suspend fun delete(id: Long) =
+        db.entryDao().delete(id)
+
+    // ── Helpers privés ────────────────────────────────────────────────────────
+
+    private suspend fun saveEmotionsAndTags(
+        entryId: Long,
+        emotionIds: List<Pair<Long, Int>>,
+        tagLabels: List<String>
+    ) {
         emotionIds.forEach { (emotionId, intensity) ->
             db.entryEmotionDao().insert(
                 EntryEmotion(entryId = entryId, emotionId = emotionId, intensity = intensity)
             )
         }
-
         tagLabels.forEach { label ->
             val tagId = TagRepository(db).getOrCreate(label)
             db.entryTagDao().insert(EntryTag(entryId = entryId, tagId = tagId))
         }
-
-        return entryId
     }
 
-    suspend fun delete(id: Long) =
-        db.entryDao().delete(id)
+    private suspend fun replaceEmotionsAndTags(
+        entryId: Long,
+        emotionIds: List<Pair<Long, Int>>,
+        tagLabels: List<String>
+    ) {
+        db.entryEmotionDao().deleteAllForEntry(entryId)
+        db.entryTagDao().deleteAllForEntry(entryId)
+        saveEmotionsAndTags(entryId, emotionIds, tagLabels)
+    }
 }

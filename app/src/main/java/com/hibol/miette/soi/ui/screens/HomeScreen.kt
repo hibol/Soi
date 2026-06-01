@@ -63,13 +63,7 @@ fun HomeScreen(
             EntryTypePicker(
                 onTypeSelected = { type ->
                     showPicker = false
-                    navController.navigate(
-                        when (type) {
-                            EntryType.DREAM -> Routes.NEW_DREAM
-                            EntryType.SESSION -> Routes.NEW_SESSION
-                            EntryType.LIFE_EVENT -> Routes.NEW_EVENT
-                        }
-                    )
+                    navController.navigate(Routes.newEntry(type))
                 },
                 onDismiss = { showPicker = false }
             )
@@ -82,18 +76,15 @@ fun HomeScreen(
                 entries = entriesByDate[date] ?: emptyList(),
                 onEntryClick = { entryId ->
                     selectedDate = null
-                    // navigation vers détail — à venir
+                    navController.navigate(Routes.entryDetail(entryId))
                 },
-                onNewEntry = { type, date ->
+                onNewEntry = { type, selectedDay ->
                     selectedDate = null
-                    val millis = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-                    navController.navigate(
-                        when (type) {
-                            "dream" -> Routes.newDream(millis)
-                            "session" -> Routes.newSession(millis)
-                            else -> Routes.newEvent(millis)
-                        }
-                    )
+                    val millis = selectedDay
+                        .atStartOfDay(ZoneId.systemDefault())
+                        .toInstant()
+                        .toEpochMilli()
+                    navController.navigate(Routes.newEntry(type, millis))
                 },
                 onDismiss = { selectedDate = null }
             )

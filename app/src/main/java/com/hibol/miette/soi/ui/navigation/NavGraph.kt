@@ -1,6 +1,5 @@
 package com.hibol.miette.soi.ui.navigation
 
-import android.R.attr.defaultValue
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -10,10 +9,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.hibol.miette.soi.SoiApplication
+import com.hibol.miette.soi.data.entity.EntryType
+import com.hibol.miette.soi.ui.screens.EntryDetailScreen
 import com.hibol.miette.soi.ui.screens.HomeScreen
-import com.hibol.miette.soi.ui.screens.NewDreamScreen
-import com.hibol.miette.soi.ui.screens.NewEventScreen
-import com.hibol.miette.soi.ui.screens.NewSessionScreen
+import com.hibol.miette.soi.ui.screens.NewEntryScreen
 import com.hibol.miette.soi.ui.screens.SetupScreen
 import com.hibol.miette.soi.ui.screens.SplashScreen
 import com.hibol.miette.soi.ui.viewmodel.SetupViewModel
@@ -23,17 +22,21 @@ object Routes {
     const val SETUP = "setup"
     const val SPLASH = "splash"
     const val HOME = "home"
-    const val ENTRY_DETAIL = "entry/{entryId}"
-    const val NEW_DREAM = "new_dream?date={date}"
-    const val NEW_SESSION = "new_session?date={date}"
-    const val NEW_EVENT = "new_event?date={date}"
+    const val ENTRY_DETAIL = "entry_detail/{entryId}"
+    fun entryDetail(entryId: Long) = "entry_detail/$entryId"
+    const val NEW_ENTRY = "new_entry/{type}?date={date}&entryId={entryId}"
     const val PARTS = "parts"
     const val PART_DETAIL = "part/{partId}"
     const val SETTINGS = "settings"
 
-    fun newDream(date: Long? = null) = if (date != null) "new_dream?date=$date" else "new_dream"
-    fun newSession(date: Long? = null) = if (date != null) "new_session?date=$date" else "new_session"
-    fun newEvent(date: Long? = null) = if (date != null) "new_event?date=$date" else "new_event"
+    fun newEntry(type: EntryType, date: Long? = null, entryId: Long? = null): String {
+        var route = "new_entry/${type.value}"
+        val params = mutableListOf<String>()
+        if (date != null) params.add("date=$date")
+        if (entryId != null) params.add("entryId=$entryId")
+        if (params.isNotEmpty()) route += "?${params.joinToString("&")}"
+        return route
+    }
 }
 
 @Composable
@@ -63,32 +66,32 @@ fun NavGraph(
         composable(Routes.HOME) {
             HomeScreen(navController)
         }
-        composable(Routes.NEW_DREAM,
-            arguments = listOf(navArgument("date") {
-                type = NavType.LongType
-                defaultValue = -1L
-            })
+        composable(
+            route = "new_entry/{type}?date={date}&entryId={entryId}",
+            arguments = listOf(
+                navArgument("type") { type = NavType.StringType },
+                navArgument("date") { type = NavType.LongType; defaultValue = -1L },
+                navArgument("entryId") { type = NavType.LongType; defaultValue = -1L }
+            )
         ) { backStackEntry ->
+            val type = EntryType.entries.first {
+                it.value == backStackEntry.arguments?.getString("type")
+            }
             val date = backStackEntry.arguments?.getLong("date").takeIf { it != -1L }
-            NewDreamScreen(navController = navController, initialDate = date)
+            val entryId = backStackEntry.arguments?.getLong("entryId").takeIf { it != -1L }
+            NewEntryScreen(
+                navController = navController,
+                type = type,
+                initialDate = date,
+                entryId = entryId
+            )
         }
-        composable(Routes.NEW_SESSION,
-            arguments = listOf(navArgument("date") {
-                type = NavType.LongType
-                defaultValue = -1L
-            })
+        composable(
+            route = Routes.ENTRY_DETAIL,
+            arguments = listOf(navArgument("entryId") { type = NavType.LongType })
         ) { backStackEntry ->
-            val date = backStackEntry.arguments?.getLong("date").takeIf { it != -1L }
-            NewSessionScreen(navController = navController, initialDate = date)
-        }
-        composable(Routes.NEW_EVENT,
-            arguments = listOf(navArgument("date") {
-                type = NavType.LongType
-                defaultValue = -1L
-            })
-        ) { backStackEntry ->
-            val date = backStackEntry.arguments?.getLong("date").takeIf { it != -1L }
-            NewEventScreen(navController = navController, initialDate = date)
+            val entryId = backStackEntry.arguments?.getLong("entryId") ?: return@composable
+            EntryDetailScreen(navController = navController, entryId = entryId)
         }
         composable(Routes.PARTS) {
             // PartsScreen(navController)  — à venir
