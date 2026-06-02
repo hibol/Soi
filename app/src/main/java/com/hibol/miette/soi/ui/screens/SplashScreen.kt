@@ -26,6 +26,7 @@ fun SplashScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    var biometricLaunched by remember { mutableStateOf(false) }
 
     LaunchedEffect(state) {
         when (state) {
@@ -38,12 +39,22 @@ fun SplashScreen(
             }
 
             is SplashState.HasProfile -> {
-                val biometricManager = BiometricManager.from(context)
-                val canAuthenticate = biometricManager.canAuthenticate(
-                    BIOMETRIC_STRONG or DEVICE_CREDENTIAL
-                )
+                if (biometricLaunched) return@LaunchedEffect
+                biometricLaunched = true
 
-                if (canAuthenticate == BiometricManager.BIOMETRIC_SUCCESS) {
+                val biometricManager = BiometricManager.from(context)
+
+                // BIOMETRIC_STRONG | DEVICE_CREDENTIAL n'est supporté qu'à partir d'API 30.
+                // On teste d'abord STRONG seul (empreinte = Class 3), puis WEAK (visage Class 2).
+                val authenticators = when {
+                    biometricManager.canAuthenticate(BIOMETRIC_STRONG) == BiometricManager.BIOMETRIC_SUCCESS ->
+                        BIOMETRIC_STRONG
+                    biometricManager.canAuthenticate(BIOMETRIC_WEAK) == BiometricManager.BIOMETRIC_SUCCESS ->
+                        BIOMETRIC_WEAK
+                    else -> null
+                }
+
+                if (authenticators != null) {
                     val executor = ContextCompat.getMainExecutor(context)
                     val prompt = BiometricPrompt(
                         context as FragmentActivity,
@@ -61,12 +72,11 @@ fun SplashScreen(
                                 errorCode: Int,
                                 errString: CharSequence
                             ) {
-                                // Auth annulée — on reste sur le splash
-                                // L'utilisateur peut réessayer
+                                // Auth annulée ou trop d'essais — on reste bloqué sur le splash
                             }
 
                             override fun onAuthenticationFailed() {
-                                // Tentative échouée — le prompt reste ouvert
+                                // Tentative échouée — le prompt reste ouvert, Android gère le retry
                             }
                         }
                     )
@@ -75,11 +85,13 @@ fun SplashScreen(
                         BiometricPrompt.PromptInfo.Builder()
                             .setTitle("Soi")
                             .setSubtitle("Déverrouiller")
-                            .setAllowedAuthenticators(BIOMETRIC_STRONG or DEVICE_CREDENTIAL)
+                            .setAllowedAuthenticators(authenticators)
+                            // setNegativeButtonText est obligatoire quand on n'utilise pas DEVICE_CREDENTIAL
+                            .setNegativeButtonText("Annuler")
                             .build()
                     )
                 } else {
-                    // Pas de biométrie disponible → accès direct
+                    // Aucune biométrie disponible sur cet appareil → accès direct
                     navController.navigate(Routes.HOME) {
                         popUpTo(Routes.SPLASH) { inclusive = true }
                     }
