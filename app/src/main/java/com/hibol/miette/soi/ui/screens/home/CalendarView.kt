@@ -3,7 +3,9 @@ package com.hibol.miette.soi.ui.screens.home
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.foundation.shape.CircleShape
@@ -43,7 +45,21 @@ fun CalendarView(
         LocalDate.ofEpochDay(it.entryDate / 86400000L)
     }
 
-    Column(modifier = modifier) {
+    Column(
+        modifier = modifier.pointerInput(currentMonth) {
+            var totalDrag = 0f
+            val threshold = with(density) { 80.dp.toPx() }
+            detectHorizontalDragGestures(
+                onDragEnd = {
+                    if (totalDrag > threshold) onMonthChange(currentMonth.minusMonths(1))
+                    else if (totalDrag < -threshold) onMonthChange(currentMonth.plusMonths(1))
+                    totalDrag = 0f
+                },
+                onDragCancel = { totalDrag = 0f },
+                onHorizontalDrag = { _, dragAmount -> totalDrag += dragAmount }
+            )
+        }
+    ) {
         CalendarHeader(
             yearMonth = currentMonth,
             onPrevious = { onMonthChange(currentMonth.minusMonths(1)) },

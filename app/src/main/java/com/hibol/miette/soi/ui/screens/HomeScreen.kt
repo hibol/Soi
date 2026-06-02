@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -39,7 +40,8 @@ fun HomeScreen(navController: NavController) {
     )
 
     val entries by viewModel.entries.collectAsState()
-    var currentMonth by remember { mutableStateOf(YearMonth.now()) }
+    val profileName by viewModel.profileName.collectAsState()
+    val currentMonth by viewModel.currentMonth.collectAsState()
     var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
     var showPicker by remember { mutableStateOf(false) }
     var pickerDate by remember { mutableStateOf<LocalDate?>(null) }
@@ -96,11 +98,19 @@ fun HomeScreen(navController: NavController) {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
+            if (profileName.isNotEmpty()) {
+                Text(
+                    text = "Bonjour $profileName",
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                )
+            }
+
             CalendarView(
                 entries = entries,
                 currentMonth = currentMonth,
                 onMonthChange = { newMonth ->
-                    currentMonth = newMonth
+                    viewModel.setMonth(newMonth)
                     selectedDate = null
                 },
                 selectedDate = selectedDate,
@@ -126,6 +136,15 @@ fun HomeScreen(navController: NavController) {
                 groupedEntries = groupedEntries,
                 listState = listState,
                 onEntryClick = { entryId ->
+                    entries.find { it.id == entryId }?.let { entry ->
+                        viewModel.setMonth(
+                            YearMonth.from(
+                                Instant.ofEpochMilli(entry.entryDate)
+                                    .atZone(ZoneId.systemDefault())
+                                    .toLocalDate()
+                            )
+                        )
+                    }
                     navController.navigate(Routes.entryDetail(entryId))
                 },
                 modifier = Modifier

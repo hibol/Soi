@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import java.time.YearMonth
 
 class HomeViewModel(
     private val profileRepository: ProfileRepository,
@@ -19,12 +20,19 @@ class HomeViewModel(
     private val _entries = MutableStateFlow<List<Entry>>(emptyList())
     val entries: StateFlow<List<Entry>> = _entries
 
+    private val _profileName = MutableStateFlow("")
+    val profileName: StateFlow<String> = _profileName
+
+    private val _currentMonth = MutableStateFlow(YearMonth.now())
+    val currentMonth: StateFlow<YearMonth> = _currentMonth
+
     private val _profileId = MutableStateFlow<Long?>(null)
 
     init {
         viewModelScope.launch {
             profileRepository.getProfile().collectLatest { profile ->
                 profile?.let {
+                    _profileName.value = it.name
                     _profileId.value = it.id
                     entryRepository.getAllByProfile(it.id).collectLatest { entries ->
                         _entries.value = entries
@@ -32,6 +40,10 @@ class HomeViewModel(
                 }
             }
         }
+    }
+
+    fun setMonth(month: YearMonth) {
+        _currentMonth.value = month
     }
 
     class Factory(
