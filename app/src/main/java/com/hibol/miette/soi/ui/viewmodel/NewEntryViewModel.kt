@@ -73,10 +73,12 @@ class NewEntryViewModel(
             _initialDate.value = entry.entryDate
 
             // Charger les émotions liées
+            // On interroge le repository directement plutôt que de lire secondaryEmotions.value,
+            // qui peut encore être vide si le init n'a pas fini de charger (race condition).
             val entryEmotions = entryRepository.getEmotionsForEntry(entryId).first()
-            val allSecondary = secondaryEmotions.value
+            val allEmotions = emotionRepository.getAllEmotions().first()
             _initialEmotions.value = entryEmotions.mapNotNull { entryEmotion ->
-                allSecondary.firstOrNull { it.id == entryEmotion.emotionId }
+                allEmotions.firstOrNull { it.id == entryEmotion.emotionId }
                     ?.let { EmotionSelection(emotion = it, intensity = entryEmotion.intensity) }
             }
 
