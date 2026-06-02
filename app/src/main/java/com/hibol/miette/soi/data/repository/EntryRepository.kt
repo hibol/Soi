@@ -30,6 +30,9 @@ class EntryRepository(private val db: SoiDatabase) {
     fun getDreamDetail(entryId: Long): Flow<DreamEntry?> =
         db.dreamEntryDao().getById(entryId)
 
+    fun getAllEmotionsForProfile(profileId: Long): Flow<List<EntryEmotion>> =
+        db.entryEmotionDao().getAllForProfile(profileId)
+
     // ── Création ─────────────────────────────────────────────────────────────
 
     suspend fun createDreamEntry(

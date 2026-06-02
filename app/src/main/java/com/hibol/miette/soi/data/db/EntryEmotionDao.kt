@@ -18,4 +18,7 @@ interface EntryEmotionDao {
 
     @Query("SELECT * FROM entry_emotion WHERE entryId = :entryId")
     fun getByEntry(entryId: Long): Flow<List<EntryEmotion>>
+
+    @Query("SELECT ee.* FROM entry_emotion ee JOIN entry e ON ee.entryId = e.id WHERE e.profileId = :profileId")
+    fun getAllForProfile(profileId: Long): Flow<List<EntryEmotion>>
 }

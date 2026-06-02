@@ -35,13 +35,15 @@ fun HomeScreen(navController: NavController) {
     val viewModel: HomeViewModel = viewModel(
         factory = HomeViewModel.Factory(
             app.container.profileRepository,
-            app.container.entryRepository
+            app.container.entryRepository,
+            app.container.emotionRepository
         )
     )
 
     val entries by viewModel.entries.collectAsState()
     val profileName by viewModel.profileName.collectAsState()
     val currentMonth by viewModel.currentMonth.collectAsState()
+    val emotionColors by viewModel.emotionColors.collectAsState()
     var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
     var showPicker by remember { mutableStateOf(false) }
     var pickerDate by remember { mutableStateOf<LocalDate?>(null) }
@@ -134,6 +136,7 @@ fun HomeScreen(navController: NavController) {
 
             MonthEntryList(
                 groupedEntries = groupedEntries,
+                emotionColors = emotionColors,
                 listState = listState,
                 onEntryClick = { entryId ->
                     entries.find { it.id == entryId }?.let { entry ->
