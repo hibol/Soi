@@ -44,7 +44,6 @@ fun HomeScreen(navController: NavController) {
     val profileName by viewModel.profileName.collectAsState()
     val currentMonth by viewModel.currentMonth.collectAsState()
     val emotionColors by viewModel.emotionColors.collectAsState()
-    var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
     var showPicker by remember { mutableStateOf(false) }
     var pickerDate by remember { mutableStateOf<LocalDate?>(null) }
 
@@ -111,15 +110,9 @@ fun HomeScreen(navController: NavController) {
             CalendarView(
                 entries = entries,
                 currentMonth = currentMonth,
-                onMonthChange = { newMonth ->
-                    viewModel.setMonth(newMonth)
-                    selectedDate = null
-                },
-                selectedDate = selectedDate,
+                onMonthChange = { newMonth -> viewModel.setMonth(newMonth) },
                 onDayClick = { date ->
-                    // Scroll uniquement si ce jour a des entrées
                     dayIndexMap[date]?.let { index ->
-                        selectedDate = date
                         coroutineScope.launch {
                             listState.animateScrollToItem(index)
                         }

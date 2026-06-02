@@ -1,13 +1,10 @@
 package com.hibol.miette.soi.ui.screens.home
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
@@ -16,13 +13,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.hibol.miette.soi.data.entity.Entry
 import com.hibol.miette.soi.ui.theme.colorFamilyForType
 import com.hibol.miette.soi.ui.theme.extendedColorScheme
@@ -36,7 +31,6 @@ fun CalendarView(
     entries: List<Entry>,
     currentMonth: YearMonth,
     onMonthChange: (YearMonth) -> Unit,
-    selectedDate: LocalDate?,
     onDayClick: (LocalDate) -> Unit,
     onDayLongClick: (LocalDate) -> Unit,
     modifier: Modifier = Modifier
@@ -80,7 +74,6 @@ fun CalendarView(
                     DayCell(
                         day = day,
                         dayEntries = entriesByDate[day.date] ?: emptyList(),
-                        isSelected = day.isCurrentMonth && day.date == selectedDate,
                         onClick = { if (day.isCurrentMonth) onDayClick(day.date) },
                         onLongClick = { if (day.isCurrentMonth) onDayLongClick(day.date) },
                         modifier = Modifier.weight(1f)
@@ -138,74 +131,57 @@ private fun DayOfWeekHeader() {
 private fun DayCell(
     day: CalendarDay,
     dayEntries: List<Entry>,
-    isSelected: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val isToday = day.date == LocalDate.now()
-    // Capturé ici car drawBehind s'exécute dans un DrawScope sans accès à MaterialTheme
-    val primaryColor = MaterialTheme.colorScheme.primary
 
-    Column(
+    Box(
         modifier = modifier
             .aspectRatio(1f)
             .padding(2.dp)
-            .drawBehind {
-                if (isSelected) {
-                    val radius = size.minDimension / 3f
-                    drawContext.canvas.nativeCanvas.drawCircle(
-                        center.x, center.y, radius,
-                        android.graphics.Paint().apply {
-                            isAntiAlias = true
-                            color = primaryColor.copy(alpha = 0.4f).toArgb()
-                            maskFilter = android.graphics.BlurMaskFilter(
-                                radius,
-                                android.graphics.BlurMaskFilter.Blur.NORMAL
-                            )
-                        }
-                    )
-                }
-            }
             .clip(CircleShape)
             .combinedClickable(
                 enabled = day.isCurrentMonth,
                 onClick = onClick,
                 onLongClick = onLongClick
             ),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        contentAlignment = Alignment.Center
     ) {
+        if (dayEntries.isNotEmpty()) {
+            EntryPieChart(entries = dayEntries)
+        }
         Text(
             text = day.date.dayOfMonth.toString(),
             style = MaterialTheme.typography.bodySmall,
             color = when {
                 !day.isCurrentMonth -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                isSelected || isToday -> MaterialTheme.colorScheme.primary
+                dayEntries.isNotEmpty() -> Color.White
+                isToday -> MaterialTheme.colorScheme.primary
                 else -> MaterialTheme.colorScheme.onSurface
             },
-            fontWeight = if (isSelected || isToday) androidx.compose.ui.text.font.FontWeight.Bold else null
+            fontWeight = if (isToday) androidx.compose.ui.text.font.FontWeight.Bold else null
         )
-
-        if (dayEntries.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(2.dp))
-            EntryDots(entries = dayEntries)
-        }
     }
 }
 
 @Composable
-private fun EntryDots(entries: List<Entry>) {
+private fun EntryPieChart(entries: List<Entry>) {
     val extended = extendedColorScheme()
-    val types = entries.map { it.type }.distinct().take(3)
-    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-        types.forEach { type ->
-            Box(
-                modifier = Modifier
-                    .size(5.dp)
-                    .clip(CircleShape)
-                    .background(extended.colorFamilyForType(type).color)
+    val typeCounts = entries.groupBy { it.type }
+    val total = entries.size.toFloat()
+    Canvas(modifier = Modifier.fillMaxSize(0.7f).aspectRatio(1f)) {
+        var startAngle = -90f
+        typeCounts.forEach { (type, typeEntries) ->
+            val sweepAngle = 360f * (typeEntries.size / total)
+            drawArc(
+                color = extended.colorFamilyForType(type).color,
+                startAngle = startAngle,
+                sweepAngle = sweepAngle,
+                useCenter = true
             )
+            startAngle += sweepAngle
         }
     }
 }
