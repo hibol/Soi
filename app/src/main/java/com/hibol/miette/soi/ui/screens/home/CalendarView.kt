@@ -1,8 +1,11 @@
 package com.hibol.miette.soi.ui.screens.home
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
@@ -14,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -28,12 +32,13 @@ import java.util.Locale
 @Composable
 fun CalendarView(
     entries: List<Entry>,
+    currentMonth: YearMonth,
+    onMonthChange: (YearMonth) -> Unit,
+    selectedDate: LocalDate?,
     onDayClick: (LocalDate) -> Unit,
+    onDayLongClick: (LocalDate) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var currentMonth by remember { mutableStateOf(YearMonth.now()) }
-
-    // Grouper les entrées par date
     val entriesByDate = entries.groupBy {
         LocalDate.ofEpochDay(it.entryDate / 86400000L)
     }
@@ -41,8 +46,8 @@ fun CalendarView(
     Column(modifier = modifier) {
         CalendarHeader(
             yearMonth = currentMonth,
-            onPrevious = { currentMonth = currentMonth.minusMonths(1) },
-            onNext = { currentMonth = currentMonth.plusMonths(1) }
+            onPrevious = { onMonthChange(currentMonth.minusMonths(1)) },
+            onNext = { onMonthChange(currentMonth.plusMonths(1)) }
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -59,7 +64,9 @@ fun CalendarView(
                     DayCell(
                         day = day,
                         dayEntries = entriesByDate[day.date] ?: emptyList(),
-                        onClick = { onDayClick(day.date) },
+                        isSelected = day.isCurrentMonth && day.date == selectedDate,
+                        onClick = { if (day.isCurrentMonth) onDayClick(day.date) },
+                        onLongClick = { if (day.isCurrentMonth) onDayLongClick(day.date) },
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -110,21 +117,46 @@ private fun DayOfWeekHeader() {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun DayCell(
     day: CalendarDay,
     dayEntries: List<Entry>,
+    isSelected: Boolean,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val isToday = day.date == LocalDate.now()
+    // Capturé ici car drawBehind s'exécute dans un DrawScope sans accès à MaterialTheme
+    val primaryColor = MaterialTheme.colorScheme.primary
 
     Column(
         modifier = modifier
             .aspectRatio(1f)
             .padding(2.dp)
+            .drawBehind {
+                if (isSelected) {
+                    val radius = size.minDimension / 3f
+                    drawContext.canvas.nativeCanvas.drawCircle(
+                        center.x, center.y, radius,
+                        android.graphics.Paint().apply {
+                            isAntiAlias = true
+                            color = primaryColor.copy(alpha = 0.4f).toArgb()
+                            maskFilter = android.graphics.BlurMaskFilter(
+                                radius,
+                                android.graphics.BlurMaskFilter.Blur.NORMAL
+                            )
+                        }
+                    )
+                }
+            }
             .clip(CircleShape)
-            .clickable(enabled = day.isCurrentMonth) { onClick() },
+            .combinedClickable(
+                enabled = day.isCurrentMonth,
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -133,10 +165,10 @@ private fun DayCell(
             style = MaterialTheme.typography.bodySmall,
             color = when {
                 !day.isCurrentMonth -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                isToday -> MaterialTheme.colorScheme.primary
+                isSelected || isToday -> MaterialTheme.colorScheme.primary
                 else -> MaterialTheme.colorScheme.onSurface
             },
-            fontWeight = if (isToday) androidx.compose.ui.text.font.FontWeight.Bold else null
+            fontWeight = if (isSelected || isToday) androidx.compose.ui.text.font.FontWeight.Bold else null
         )
 
         if (dayEntries.isNotEmpty()) {

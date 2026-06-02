@@ -34,18 +34,6 @@ class HomeViewModel(
         }
     }
 
-    fun getEntriesForMonth(from: Long, to: Long): StateFlow<List<Entry>> {
-        val result = MutableStateFlow<List<Entry>>(emptyList())
-        viewModelScope.launch {
-            _profileId.value?.let { profileId ->
-                entryRepository.getByDateRange(profileId, from, to).collectLatest {
-                    result.value = it
-                }
-            }
-        }
-        return result
-    }
-
     class Factory(
         private val profileRepository: ProfileRepository,
         private val entryRepository: EntryRepository
