@@ -47,6 +47,9 @@ class NewEntryViewModel(
     private val _initialDate = MutableStateFlow<Long?>(null)
     val initialDate: StateFlow<Long?> = _initialDate
 
+    private val _initialIsBlurred = MutableStateFlow(false)
+    val initialIsBlurred: StateFlow<Boolean> = _initialIsBlurred
+
     private val _isLoaded = MutableStateFlow(false)
     val isLoaded: StateFlow<Boolean> = _isLoaded
 
@@ -81,6 +84,8 @@ class NewEntryViewModel(
             _initialTags.value = entryRepository.getTagsForEntry(entryId).first()
                 .map { it.label }
 
+            _initialIsBlurred.value = entry.isBlurred != 0
+
             // Qualité du souvenir si rêve
             entryRepository.getDreamDetail(entryId).first()?.let {
                 _initialMemoryQuality.value = it.memoryQuality
@@ -90,95 +95,100 @@ class NewEntryViewModel(
         }
     }
 
-    suspend fun saveDream(
+    fun saveDream(
         entryId: Long? = null,
         text: String?,
         memoryQuality: String,
         entryDate: Long,
         emotions: List<EmotionSelection>,
-        tags: List<String>
-    ) {
-        val profileId = _profileId.value ?: return
-        viewModelScope.launch {
-            if (entryId == null) {
-                entryRepository.createDreamEntry(
-                    profileId = profileId,
-                    entryDate = entryDate,
-                    text = text,
-                    memoryQuality = memoryQuality,
-                    emotionIds = emotions.map { Pair(it.emotion.id, it.intensity) },
-                    tagLabels = tags
-                )
-            } else {
-                entryRepository.updateDreamEntry(
-                    entryId = entryId,
-                    text = text,
-                    memoryQuality = memoryQuality,
-                    entryDate = entryDate,
-                    emotionIds = emotions.map { Pair(it.emotion.id, it.intensity) },
-                    tagLabels = tags
-                )
-            }
-            _entrySaved.value = true
+        tags: List<String>,
+        isBlurred: Boolean = false
+    ) = saveEntry { profileId ->
+        if (entryId == null) {
+            entryRepository.createDreamEntry(
+                profileId = profileId,
+                entryDate = entryDate,
+                text = text,
+                memoryQuality = memoryQuality,
+                emotionIds = emotions.map { Pair(it.emotion.id, it.intensity) },
+                tagLabels = tags,
+                isBlurred = isBlurred
+            )
+        } else {
+            entryRepository.updateDreamEntry(
+                entryId = entryId,
+                text = text,
+                memoryQuality = memoryQuality,
+                entryDate = entryDate,
+                emotionIds = emotions.map { Pair(it.emotion.id, it.intensity) },
+                tagLabels = tags,
+                isBlurred = isBlurred
+            )
         }
     }
 
-    suspend fun saveSession(
+    fun saveSession(
         entryId: Long? = null,
         text: String?,
         entryDate: Long,
         emotions: List<EmotionSelection>,
-        tags: List<String>
-    ) {
-        val profileId = _profileId.value ?: return
-        viewModelScope.launch {
-            if (entryId == null) {
-                entryRepository.createSessionEntry(
-                    profileId = profileId,
-                    entryDate = entryDate,
-                    text = text,
-                    emotionIds = emotions.map { Pair(it.emotion.id, it.intensity) },
-                    tagLabels = tags
-                )
-            } else {
-                entryRepository.updateSessionEntry(
-                    entryId = entryId,
-                    text = text,
-                    entryDate = entryDate,
-                    emotionIds = emotions.map { Pair(it.emotion.id, it.intensity) },
-                    tagLabels = tags
-                )
-            }
-            _entrySaved.value = true
+        tags: List<String>,
+        isBlurred: Boolean = false
+    ) = saveEntry { profileId ->
+        if (entryId == null) {
+            entryRepository.createSessionEntry(
+                profileId = profileId,
+                entryDate = entryDate,
+                text = text,
+                emotionIds = emotions.map { Pair(it.emotion.id, it.intensity) },
+                tagLabels = tags,
+                isBlurred = isBlurred
+            )
+        } else {
+            entryRepository.updateSessionEntry(
+                entryId = entryId,
+                text = text,
+                entryDate = entryDate,
+                emotionIds = emotions.map { Pair(it.emotion.id, it.intensity) },
+                tagLabels = tags,
+                isBlurred = isBlurred
+            )
         }
     }
 
-    suspend fun saveEvent(
+    fun saveEvent(
         entryId: Long? = null,
         text: String?,
         entryDate: Long,
         emotions: List<EmotionSelection>,
-        tags: List<String>
-    ) {
+        tags: List<String>,
+        isBlurred: Boolean = false
+    ) = saveEntry { profileId ->
+        if (entryId == null) {
+            entryRepository.createEventEntry(
+                profileId = profileId,
+                entryDate = entryDate,
+                text = text,
+                emotionIds = emotions.map { Pair(it.emotion.id, it.intensity) },
+                tagLabels = tags,
+                isBlurred = isBlurred
+            )
+        } else {
+            entryRepository.updateEventEntry(
+                entryId = entryId,
+                text = text,
+                entryDate = entryDate,
+                emotionIds = emotions.map { Pair(it.emotion.id, it.intensity) },
+                tagLabels = tags,
+                isBlurred = isBlurred
+            )
+        }
+    }
+
+    private fun saveEntry(block: suspend (profileId: Long) -> Unit) {
         val profileId = _profileId.value ?: return
         viewModelScope.launch {
-            if (entryId == null) {
-                entryRepository.createEventEntry(
-                    profileId = profileId,
-                    entryDate = entryDate,
-                    text = text,
-                    emotionIds = emotions.map { Pair(it.emotion.id, it.intensity) },
-                    tagLabels = tags
-                )
-            } else {
-                entryRepository.updateEventEntry(
-                    entryId = entryId,
-                    text = text,
-                    entryDate = entryDate,
-                    emotionIds = emotions.map { Pair(it.emotion.id, it.intensity) },
-                    tagLabels = tags
-                )
-            }
+            block(profileId)
             _entrySaved.value = true
         }
     }

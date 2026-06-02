@@ -6,6 +6,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -19,7 +21,6 @@ import com.hibol.miette.soi.ui.components.EmotionPicker
 import com.hibol.miette.soi.ui.components.EmotionSelection
 import com.hibol.miette.soi.ui.components.TagPicker
 import com.hibol.miette.soi.ui.viewmodel.NewEntryViewModel
-import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -58,6 +59,7 @@ fun NewEntryScreen(
     var selectedEmotions by remember { mutableStateOf<List<EmotionSelection>>(emptyList()) }
     var selectedTags by remember { mutableStateOf<List<String>>(emptyList()) }
     var entryDate by remember { mutableStateOf(initialDate ?: System.currentTimeMillis()) }
+    var isBlurred by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
 
@@ -67,8 +69,6 @@ fun NewEntryScreen(
         initialMinute = Instant.ofEpochMilli(entryDate).atZone(ZoneId.systemDefault()).minute,
         is24Hour = true
     )
-
-    val scope = rememberCoroutineScope()
 
     // Charger l'entrée existante si édition
     LaunchedEffect(entryId) {
@@ -83,6 +83,7 @@ fun NewEntryScreen(
             selectedEmotions = viewModel.initialEmotions.value
             selectedTags = viewModel.initialTags.value
             viewModel.initialDate.value?.let { entryDate = it }
+            isBlurred = viewModel.initialIsBlurred.value
         }
     }
 
@@ -150,33 +151,40 @@ fun NewEntryScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { isBlurred = !isBlurred }) {
+                        Icon(
+                            imageVector = if (isBlurred) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                            contentDescription = if (isBlurred) "Texte flouté" else "Texte visible"
+                        )
+                    }
                     TextButton(
                         onClick = {
-                            scope.launch {
-                                when (type) {
-                                    EntryType.DREAM -> viewModel.saveDream(
-                                        entryId = entryId,
-                                        text = text.ifBlank { null },
-                                        memoryQuality = memoryQuality,
-                                        entryDate = entryDate,
-                                        emotions = selectedEmotions,
-                                        tags = selectedTags
-                                    )
-                                    EntryType.SESSION -> viewModel.saveSession(
-                                        entryId = entryId,
-                                        text = text.ifBlank { null },
-                                        entryDate = entryDate,
-                                        emotions = selectedEmotions,
-                                        tags = selectedTags
-                                    )
-                                    EntryType.LIFE_EVENT -> viewModel.saveEvent(
-                                        entryId = entryId,
-                                        text = text.ifBlank { null },
-                                        entryDate = entryDate,
-                                        emotions = selectedEmotions,
-                                        tags = selectedTags
-                                    )
-                                }
+                            when (type) {
+                                EntryType.DREAM -> viewModel.saveDream(
+                                    entryId = entryId,
+                                    text = text.ifBlank { null },
+                                    memoryQuality = memoryQuality,
+                                    entryDate = entryDate,
+                                    emotions = selectedEmotions,
+                                    tags = selectedTags,
+                                    isBlurred = isBlurred
+                                )
+                                EntryType.SESSION -> viewModel.saveSession(
+                                    entryId = entryId,
+                                    text = text.ifBlank { null },
+                                    entryDate = entryDate,
+                                    emotions = selectedEmotions,
+                                    tags = selectedTags,
+                                    isBlurred = isBlurred
+                                )
+                                EntryType.LIFE_EVENT -> viewModel.saveEvent(
+                                    entryId = entryId,
+                                    text = text.ifBlank { null },
+                                    entryDate = entryDate,
+                                    emotions = selectedEmotions,
+                                    tags = selectedTags,
+                                    isBlurred = isBlurred
+                                )
                             }
                         }
                     ) { Text("Enregistrer") }

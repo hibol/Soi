@@ -38,16 +38,10 @@ class EntryRepository(private val db: SoiDatabase) {
         text: String?,
         memoryQuality: String,
         emotionIds: List<Pair<Long, Int>>,
-        tagLabels: List<String>
+        tagLabels: List<String>,
+        isBlurred: Boolean = false
     ): Long {
-        val entryId = db.entryDao().insert(
-            Entry(
-                profileId = profileId,
-                entryType = "dream",
-                entryDate = entryDate,
-                text = text
-            )
-        )
+        val entryId = insertBaseEntry(profileId, "dream", entryDate, text, isBlurred)
         db.dreamEntryDao().insert(DreamEntry(id = entryId, memoryQuality = memoryQuality))
         saveEmotionsAndTags(entryId, emotionIds, tagLabels)
         return entryId
@@ -58,16 +52,10 @@ class EntryRepository(private val db: SoiDatabase) {
         entryDate: Long,
         text: String?,
         emotionIds: List<Pair<Long, Int>>,
-        tagLabels: List<String>
+        tagLabels: List<String>,
+        isBlurred: Boolean = false
     ): Long {
-        val entryId = db.entryDao().insert(
-            Entry(
-                profileId = profileId,
-                entryType = "session",
-                entryDate = entryDate,
-                text = text
-            )
-        )
+        val entryId = insertBaseEntry(profileId, "session", entryDate, text, isBlurred)
         db.sessionEntryDao().insert(SessionEntry(id = entryId))
         saveEmotionsAndTags(entryId, emotionIds, tagLabels)
         return entryId
@@ -78,16 +66,10 @@ class EntryRepository(private val db: SoiDatabase) {
         entryDate: Long,
         text: String?,
         emotionIds: List<Pair<Long, Int>>,
-        tagLabels: List<String>
+        tagLabels: List<String>,
+        isBlurred: Boolean = false
     ): Long {
-        val entryId = db.entryDao().insert(
-            Entry(
-                profileId = profileId,
-                entryType = "life_event",
-                entryDate = entryDate,
-                text = text
-            )
-        )
+        val entryId = insertBaseEntry(profileId, "life_event", entryDate, text, isBlurred)
         db.eventEntryDao().insert(EventEntry(id = entryId))
         saveEmotionsAndTags(entryId, emotionIds, tagLabels)
         return entryId
@@ -101,16 +83,10 @@ class EntryRepository(private val db: SoiDatabase) {
         memoryQuality: String,
         entryDate: Long,
         emotionIds: List<Pair<Long, Int>>,
-        tagLabels: List<String>
+        tagLabels: List<String>,
+        isBlurred: Boolean = false
     ) {
-        val existing = db.entryDao().getById(entryId).first() ?: return
-        db.entryDao().update(
-            existing.copy(
-                text = text,
-                entryDate = entryDate,
-                updatedAt = System.currentTimeMillis()
-            )
-        )
+        if (!updateBaseEntry(entryId, text, entryDate, isBlurred)) return
         db.dreamEntryDao().update(DreamEntry(id = entryId, memoryQuality = memoryQuality))
         replaceEmotionsAndTags(entryId, emotionIds, tagLabels)
     }
@@ -120,16 +96,10 @@ class EntryRepository(private val db: SoiDatabase) {
         text: String?,
         entryDate: Long,
         emotionIds: List<Pair<Long, Int>>,
-        tagLabels: List<String>
+        tagLabels: List<String>,
+        isBlurred: Boolean = false
     ) {
-        val existing = db.entryDao().getById(entryId).first() ?: return
-        db.entryDao().update(
-            existing.copy(
-                text = text,
-                entryDate = entryDate,
-                updatedAt = System.currentTimeMillis()
-            )
-        )
+        if (!updateBaseEntry(entryId, text, entryDate, isBlurred)) return
         replaceEmotionsAndTags(entryId, emotionIds, tagLabels)
     }
 
@@ -138,16 +108,10 @@ class EntryRepository(private val db: SoiDatabase) {
         text: String?,
         entryDate: Long,
         emotionIds: List<Pair<Long, Int>>,
-        tagLabels: List<String>
+        tagLabels: List<String>,
+        isBlurred: Boolean = false
     ) {
-        val existing = db.entryDao().getById(entryId).first() ?: return
-        db.entryDao().update(
-            existing.copy(
-                text = text,
-                entryDate = entryDate,
-                updatedAt = System.currentTimeMillis()
-            )
-        )
+        if (!updateBaseEntry(entryId, text, entryDate, isBlurred)) return
         replaceEmotionsAndTags(entryId, emotionIds, tagLabels)
     }
 
@@ -157,6 +121,41 @@ class EntryRepository(private val db: SoiDatabase) {
         db.entryDao().delete(id)
 
     // ── Helpers privés ────────────────────────────────────────────────────────
+
+    private suspend fun insertBaseEntry(
+        profileId: Long,
+        entryType: String,
+        entryDate: Long,
+        text: String?,
+        isBlurred: Boolean
+    ): Long = db.entryDao().insert(
+        Entry(
+            profileId = profileId,
+            entryType = entryType,
+            entryDate = entryDate,
+            text = text,
+            isBlurred = if (isBlurred) 1 else 0
+        )
+    )
+
+    // Retourne false si l'entrée n'existe plus (cas rare : suppression concurrente)
+    private suspend fun updateBaseEntry(
+        entryId: Long,
+        text: String?,
+        entryDate: Long,
+        isBlurred: Boolean
+    ): Boolean {
+        val existing = db.entryDao().getById(entryId).first() ?: return false
+        db.entryDao().update(
+            existing.copy(
+                text = text,
+                entryDate = entryDate,
+                isBlurred = if (isBlurred) 1 else 0,
+                updatedAt = System.currentTimeMillis()
+            )
+        )
+        return true
+    }
 
     private suspend fun saveEmotionsAndTags(
         entryId: Long,

@@ -26,6 +26,7 @@ data class Entry(
     val entryDate: Long = System.currentTimeMillis(),
     val text: String? = null,
     val extraData: String? = null,  // JSON libre, V2
+    val isBlurred: Int = 0,
     val updatedAt: Long = System.currentTimeMillis()
 ) {
     val type: EntryType
