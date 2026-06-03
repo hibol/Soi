@@ -15,7 +15,7 @@ class SoiApplication : Application() {
         super.onCreate()
         container = AppContainer(this)
         CoroutineScope(Dispatchers.IO).launch {
-            DatabaseInitializer.populate(container.emotionRepository)
+            DatabaseInitializer.sync(container.database, this@SoiApplication)
         }
     }
 }

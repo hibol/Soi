@@ -16,6 +16,9 @@ interface EntryEmotionDao {
     @Query("DELETE FROM entry_emotion WHERE entryId = :entryId")
     suspend fun deleteAllForEntry(entryId: Long)
 
+    @Query("DELETE FROM entry_emotion WHERE emotionId = :emotionId")
+    suspend fun deleteByEmotionId(emotionId: Long)
+
     @Query("SELECT * FROM entry_emotion WHERE entryId = :entryId")
     fun getByEntry(entryId: Long): Flow<List<EntryEmotion>>
 

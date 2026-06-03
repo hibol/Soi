@@ -9,7 +9,7 @@ import com.hibol.miette.soi.data.repository.ProfileRepository
 import com.hibol.miette.soi.data.repository.TagRepository
 
 class AppContainer(context: Context) {
-    private val database = SoiDatabase.getInstance(context)
+    val database = SoiDatabase.getInstance(context)
 
     val profileRepository = ProfileRepository(database)
     val emotionRepository = EmotionRepository(database)

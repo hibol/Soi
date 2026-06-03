@@ -3,6 +3,7 @@ package com.hibol.miette.soi.data.db
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Update
 import com.hibol.miette.soi.data.entity.Emotion
 import kotlinx.coroutines.flow.Flow
 
@@ -11,6 +12,18 @@ interface EmotionDao {
 
     @Insert
     suspend fun insertAll(emotions: List<Emotion>)
+
+    @Insert
+    suspend fun insert(emotion: Emotion): Long
+
+    @Update
+    suspend fun update(emotion: Emotion)
+
+    @Query("DELETE FROM emotion WHERE id = :id")
+    suspend fun deleteById(id: Long)
+
+    @Query("SELECT * FROM emotion")
+    suspend fun getAllOnce(): List<Emotion>
 
     @Query("SELECT * FROM emotion ORDER BY label ASC")
     fun getAllEmotions(): Flow<List<Emotion>>
