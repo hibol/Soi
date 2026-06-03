@@ -1,20 +1,25 @@
 package com.hibol.miette.soi.ui.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.hibol.miette.soi.data.entity.Tag
+import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TagPicker(
     selectedTags: List<String>,
@@ -29,7 +34,17 @@ fun TagPicker(
         .filter { it.label.startsWith(input.lowercase().trim()) && it.label !in selectedTags }
         .take(5)
 
-    Column(modifier = modifier) {
+    val bringIntoViewRequester = remember { BringIntoViewRequester() }
+    val coroutineScope = rememberCoroutineScope()
+
+    // Quand les suggestions apparaissent, s'assurer que tout le bloc reste visible
+    LaunchedEffect(filteredSuggestions.size) {
+        if (filteredSuggestions.isNotEmpty()) {
+            bringIntoViewRequester.bringIntoView()
+        }
+    }
+
+    Column(modifier = modifier.bringIntoViewRequester(bringIntoViewRequester)) {
         // Tags sélectionnés
         if (selectedTags.isNotEmpty()) {
             LazyRow(
@@ -68,7 +83,13 @@ fun TagPicker(
                     }
                 }
             ),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { focusState ->
+                    if (focusState.isFocused) {
+                        coroutineScope.launch { bringIntoViewRequester.bringIntoView() }
+                    }
+                }
         )
 
         // Suggestions
