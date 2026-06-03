@@ -21,7 +21,7 @@ import com.hibol.miette.soi.data.entity.*
         Part::class,
         SessionEntryPart::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 abstract class SoiDatabase : RoomDatabase() {
@@ -50,7 +50,7 @@ abstract class SoiDatabase : RoomDatabase() {
                     SoiDatabase::class.java,
                     "soi_database"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build().also { INSTANCE = it }
             }
         }
