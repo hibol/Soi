@@ -277,8 +277,7 @@ fun NewEntryScreen(
                 primaryEmotions = primaryEmotions,
                 secondaryEmotions = secondaryEmotions,
                 selected = selectedEmotions,
-                onSelectionChanged = { selectedEmotions = it },
-                modifier = Modifier.heightIn(max = 400.dp)
+                onSelectionChanged = { selectedEmotions = it }
             )
 
             // Tags
