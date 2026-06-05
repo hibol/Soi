@@ -21,6 +21,7 @@ class EntryDetailViewModel(
 
     val entry = MutableStateFlow<Entry?>(null)
     val emotions = MutableStateFlow<List<Pair<Emotion, Int>>>(emptyList())
+    val primaryEmotions = MutableStateFlow<List<Emotion>>(emptyList())
     val tags = MutableStateFlow<List<Tag>>(emptyList())
     val dreamDetail = MutableStateFlow<DreamEntry?>(null)
 
@@ -38,6 +39,7 @@ class EntryDetailViewModel(
                 allEmotions.find { it.id == entryEmotion.emotionId }
                     ?.let { Pair(it, entryEmotion.intensity) }
             }
+            primaryEmotions.value = allEmotions.filter { it.level == 1 }
 
             // Tags
             tags.value = entryRepository.getTagsForEntry(entryId).first()

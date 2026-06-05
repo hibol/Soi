@@ -69,6 +69,7 @@ fun EmotionPicker(
     val activePrimary = primaryEmotions[safeIndex]
     val activeChildren = secondaryByParent[activePrimary.id] ?: emptyList()
     val activeColor = Color(activePrimary.color.toColorInt())
+    val activeHsl = hexToHsl(activePrimary.color)
 
     val density = LocalDensity.current
     val expansionPx = with(density) { 10.dp.toPx() }
@@ -230,7 +231,7 @@ fun EmotionPicker(
                                 val isSelected = currentSel != null
                                 SecondaryEmotionRow(
                                     emotion = emotion,
-                                    primaryColor = activeColor,
+                                    primaryHsl = activeHsl,
                                     intensity = currentSel?.intensity ?: 0,
                                     isSelected = isSelected,
                                     onToggle = {
@@ -263,7 +264,8 @@ fun EmotionPicker(
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 selected.forEach { sel ->
-                    val chipColor = Color(sel.emotion.color.toColorInt())
+                    val chipHsl = hexToHsl(sel.emotion.color)
+                    val chipBaseColor = Color(sel.emotion.color.toColorInt())
                     SuggestionChip(
                         onClick = {
                             onSelectionChanged(selected.filter { it.emotion.id != sel.emotion.id })
@@ -276,7 +278,7 @@ fun EmotionPicker(
                                 Text(sel.emotion.label, style = MaterialTheme.typography.labelSmall)
                                 IntensityDots(
                                     intensity = sel.intensity,
-                                    color = chipColor,
+                                    hsl = chipHsl,
                                     dotSize = 5.dp,
                                     onIntensityChange = { newIntensity ->
                                         onSelectionChanged(selected.map {
@@ -288,9 +290,9 @@ fun EmotionPicker(
                             }
                         },
                         colors = SuggestionChipDefaults.suggestionChipColors(
-                            containerColor = chipColor.copy(alpha = 0.12f)
+                            containerColor = chipBaseColor.copy(alpha = 0.12f)
                         ),
-                        border = BorderStroke(1.dp, chipColor.copy(alpha = 0.35f))
+                        border = BorderStroke(1.dp, colorForIntensity(chipHsl, sel.intensity).copy(alpha = 0.5f))
                     )
                 }
             }
@@ -301,7 +303,7 @@ fun EmotionPicker(
 @Composable
 private fun SecondaryEmotionRow(
     emotion: Emotion,
-    primaryColor: Color,
+    primaryHsl: Triple<Float, Float, Float>,
     intensity: Int,
     isSelected: Boolean,
     onToggle: () -> Unit,
@@ -317,7 +319,7 @@ private fun SecondaryEmotionRow(
         Text(
             text = emotion.label,
             style = MaterialTheme.typography.bodySmall.copy(
-                color = if (isSelected) MaterialTheme.colorScheme.onSurface
+                color = if (isSelected) colorForIntensity(primaryHsl, intensity)
                         else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
                 fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
                 textAlign = TextAlign.Center
@@ -327,7 +329,7 @@ private fun SecondaryEmotionRow(
             Spacer(Modifier.height(3.dp))
             IntensityDots(
                 intensity = intensity,
-                color = primaryColor,
+                hsl = primaryHsl,
                 dotSize = 9.dp,
                 onIntensityChange = onIntensityChange
             )
@@ -342,7 +344,7 @@ private fun SecondaryEmotionRow(
 @Composable
 private fun IntensityDots(
     intensity: Int,
-    color: Color,
+    hsl: Triple<Float, Float, Float>,
     dotSize: Dp = 10.dp,
     onIntensityChange: (Int) -> Unit
 ) {
@@ -352,7 +354,10 @@ private fun IntensityDots(
                 modifier = Modifier
                     .size(dotSize)
                     .clip(CircleShape)
-                    .background(if (i <= intensity) color else color.copy(alpha = 0.2f))
+                    .background(
+                        if (i <= intensity) colorForIntensity(hsl, i)
+                        else colorForIntensity(hsl, 5).copy(alpha = 0.18f)
+                    )
                     .clickable { onIntensityChange(i) }
             )
         }

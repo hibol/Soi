@@ -50,11 +50,14 @@ fun EntryDetailScreen(
 
     val entry by viewModel.entry.collectAsState()
     val emotions by viewModel.emotions.collectAsState()
+    val primaryEmotions by viewModel.primaryEmotions.collectAsState()
     val tags by viewModel.tags.collectAsState()
     val dreamDetail by viewModel.dreamDetail.collectAsState()
     val isDeleted by viewModel.isDeleted.collectAsState()
 
     var showDeleteDialog by remember { mutableStateOf(false) }
+    val prefs = remember { context.getSharedPreferences("soi_prefs", android.content.Context.MODE_PRIVATE) }
+    var showConstellation by remember { mutableStateOf(prefs.getBoolean("emotion_view_constellation", true)) }
 
     val extended = extendedColorScheme()
 
@@ -170,32 +173,65 @@ fun EntryDetailScreen(
 
                 // Émotions
                 if (emotions.isNotEmpty()) {
-                    Text("Émotions", style = MaterialTheme.typography.titleSmall)
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        emotions.forEach { (emotion, intensity) ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text(
-                                    text = emotion.label,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    val emotionColor = androidx.compose.ui.graphics.Color(
-                                        emotion.color.toColorInt()
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Émotions", style = MaterialTheme.typography.titleSmall)
+                        SingleChoiceSegmentedButtonRow {
+                            SegmentedButton(
+                                selected = showConstellation,
+                                onClick = {
+                                    showConstellation = true
+                                    prefs.edit().putBoolean("emotion_view_constellation", true).apply()
+                                },
+                                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+                            ) { Text("Constellation", style = MaterialTheme.typography.labelSmall) }
+                            SegmentedButton(
+                                selected = !showConstellation,
+                                onClick = {
+                                    showConstellation = false
+                                    prefs.edit().putBoolean("emotion_view_constellation", false).apply()
+                                },
+                                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+                            ) { Text("Liste", style = MaterialTheme.typography.labelSmall) }
+                        }
+                    }
+
+                    if (showConstellation) {
+                        com.hibol.miette.soi.ui.components.EmotionConstellationView(
+                            primaryEmotions = primaryEmotions,
+                            selections = emotions,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            emotions.forEach { (emotion, intensity) ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text = emotion.label,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        modifier = Modifier.weight(1f)
                                     )
-                                    for (i in 1..5) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(10.dp)
-                                                .clip(CircleShape)
-                                                .background(
-                                                    if (i <= intensity) emotionColor
-                                                    else emotionColor.copy(alpha = 0.2f)
-                                                )
+                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        val emotionColor = androidx.compose.ui.graphics.Color(
+                                            emotion.color.toColorInt()
                                         )
+                                        for (i in 1..5) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(10.dp)
+                                                    .clip(CircleShape)
+                                                    .background(
+                                                        if (i <= intensity) emotionColor
+                                                        else emotionColor.copy(alpha = 0.2f)
+                                                    )
+                                            )
+                                        }
                                     }
                                 }
                             }
