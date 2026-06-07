@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -30,6 +31,7 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navController: NavController) {
     val context = LocalContext.current
@@ -88,6 +90,20 @@ fun HomeScreen(navController: NavController) {
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
+        topBar = {
+            TopAppBar(
+                title = {
+                    if (profileName.isNotEmpty()) {
+                        Text("Bonjour $profileName", style = MaterialTheme.typography.headlineSmall)
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { navController.navigate(Routes.SETTINGS) }) {
+                        Icon(Icons.Default.Settings, contentDescription = "Paramètres")
+                    }
+                }
+            )
+        },
         bottomBar = {
             MainBottomBar(currentRoute = currentRoute, navController = navController)
         },
@@ -105,13 +121,6 @@ fun HomeScreen(navController: NavController) {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            if (profileName.isNotEmpty()) {
-                Text(
-                    text = "Bonjour $profileName",
-                    style = MaterialTheme.typography.headlineSmall,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-                )
-            }
 
             CalendarView(
                 entries = entries,

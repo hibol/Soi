@@ -16,6 +16,7 @@ import com.hibol.miette.soi.ui.screens.NewEntryScreen
 import com.hibol.miette.soi.ui.screens.PartDetailScreen
 import com.hibol.miette.soi.ui.screens.PartReadScreen
 import com.hibol.miette.soi.ui.screens.PartsListScreen
+import com.hibol.miette.soi.ui.screens.SettingsScreen
 import com.hibol.miette.soi.ui.screens.SetupScreen
 import com.hibol.miette.soi.ui.screens.SplashScreen
 import com.hibol.miette.soi.ui.viewmodel.SetupViewModel
@@ -126,7 +127,7 @@ fun NavGraph(
             PartDetailScreen(navController = navController, partId = partId, initialRole = role)
         }
         composable(Routes.SETTINGS) {
-            // SettingsScreen(navController)  — à venir
+            SettingsScreen(navController)
         }
     }
 }

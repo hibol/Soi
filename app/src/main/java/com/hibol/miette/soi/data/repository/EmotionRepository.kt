@@ -17,4 +17,7 @@ class EmotionRepository(private val db: SoiDatabase) {
 
     suspend fun insertAll(emotions: List<Emotion>) =
         db.emotionDao().insertAll(emotions)
+
+    suspend fun update(emotion: Emotion) =
+        db.emotionDao().update(emotion)
 }

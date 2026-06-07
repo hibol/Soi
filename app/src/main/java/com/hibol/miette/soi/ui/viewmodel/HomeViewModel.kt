@@ -43,11 +43,11 @@ class HomeViewModel(
                 profile?.let { p ->
                     _profileName.value = p.name
                     _profileId.value = p.id
-                    val allEmotions = emotionRepository.getAllEmotions().first()
                     combine(
                         entryRepository.getAllByProfile(p.id),
-                        entryRepository.getAllEmotionsForProfile(p.id)
-                    ) { entries, entryEmotions ->
+                        entryRepository.getAllEmotionsForProfile(p.id),
+                        emotionRepository.getAllEmotions()
+                    ) { entries, entryEmotions, allEmotions ->
                         entries to computeEmotionColors(entryEmotions, allEmotions)
                     }.collectLatest { (entries, colors) ->
                         _entries.value = entries

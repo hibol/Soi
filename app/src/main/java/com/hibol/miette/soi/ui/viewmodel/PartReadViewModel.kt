@@ -36,11 +36,11 @@ class PartReadViewModel(
         }
         viewModelScope.launch {
             val initialPart = partRepository.getById(partId).filterNotNull().first()
-            val allEmotions = emotionRepository.getAllEmotions().first()
             combine(
                 partRepository.getExplicitEntriesForPart(partId),
-                entryRepository.getAllEmotionsForProfile(initialPart.profileId)
-            ) { entries, allEntryEmotions ->
+                entryRepository.getAllEmotionsForProfile(initialPart.profileId),
+                emotionRepository.getAllEmotions()
+            ) { entries, allEntryEmotions, allEmotions ->
                 partEntries.value = entries
                 val entryIds = entries.map { it.id }.toSet()
                 computeEmotionColors(allEntryEmotions.filter { it.entryId in entryIds }, allEmotions)
