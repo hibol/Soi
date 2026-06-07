@@ -27,4 +27,7 @@ interface PartDao {
 
     @Query("SELECT * FROM part WHERE profileId = :profileId AND name LIKE '%' || :search || '%'")
     fun searchByName(profileId: Long, search: String): Flow<List<Part>>
+
+    @Query("SELECT * FROM part WHERE profileId = :profileId ORDER BY name ASC")
+    suspend fun getAllByProfileOnce(profileId: Long): List<Part>
 }

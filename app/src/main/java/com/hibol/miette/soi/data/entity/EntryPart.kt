@@ -5,13 +5,13 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 
 @Entity(
-    tableName = "session_entry_part",
-    primaryKeys = ["sessionEntryId", "partId"],
+    tableName = "entry_part",
+    primaryKeys = ["entryId", "partId"],
     foreignKeys = [
         ForeignKey(
-            entity = SessionEntry::class,
+            entity = Entry::class,
             parentColumns = ["id"],
-            childColumns = ["sessionEntryId"],
+            childColumns = ["entryId"],
             onDelete = ForeignKey.CASCADE
         ),
         ForeignKey(
@@ -21,11 +21,10 @@ import androidx.room.Index
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("sessionEntryId"), Index("partId")]
+    indices = [Index("entryId"), Index("partId")]
 )
-data class SessionEntryPart(
-    val sessionEntryId: Long,
+data class EntryPart(
+    val entryId: Long,
     val partId: Long,
-    val source: String = "suggested", // "explicit" | "suggested" | "nlp" (V2)
-    val confidence: Double? = null    // 0.0–1.0, V2
+    val source: String = "suggested" // "suggested" | "explicit"
 )

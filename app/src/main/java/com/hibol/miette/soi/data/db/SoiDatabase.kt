@@ -19,11 +19,11 @@ import com.hibol.miette.soi.data.entity.*
         SessionEntry::class,
         EventEntry::class,
         Part::class,
-        SessionEntryPart::class,
         PartTrait::class,
-        PartTraitLink::class
+        PartTraitLink::class,
+        EntryPart::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = true
 )
 abstract class SoiDatabase : RoomDatabase() {
@@ -40,7 +40,7 @@ abstract class SoiDatabase : RoomDatabase() {
     abstract fun entryMediaDao(): EntryMediaDao
     abstract fun partDao(): PartDao
     abstract fun partTraitDao(): PartTraitDao
-    abstract fun sessionEntryPartDao(): SessionEntryPartDao
+    abstract fun entryPartDao(): EntryPartDao
 
     companion object {
         @Volatile
@@ -53,7 +53,7 @@ abstract class SoiDatabase : RoomDatabase() {
                     SoiDatabase::class.java,
                     "soi_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     .build().also { INSTANCE = it }
             }
         }

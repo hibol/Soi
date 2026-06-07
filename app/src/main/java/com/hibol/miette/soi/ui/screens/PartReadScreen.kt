@@ -18,6 +18,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -40,7 +41,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.hibol.miette.soi.SoiApplication
 import com.hibol.miette.soi.ui.navigation.Routes
+import com.hibol.miette.soi.ui.screens.home.DaySheetEntryRow
+import com.hibol.miette.soi.ui.theme.extendedColorScheme
 import com.hibol.miette.soi.ui.viewmodel.PartReadViewModel
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -48,13 +55,22 @@ fun PartReadScreen(navController: NavController, partId: Long) {
     val context = LocalContext.current
     val app = context.applicationContext as SoiApplication
     val viewModel: PartReadViewModel = viewModel(
-        factory = PartReadViewModel.Factory(app.container.partRepository)
+        factory = PartReadViewModel.Factory(
+            app.container.partRepository,
+            app.container.entryRepository,
+            app.container.emotionRepository
+        )
     )
 
     val part by viewModel.part.collectAsState()
     val traits by viewModel.traits.collectAsState()
     val isDeleted by viewModel.isDeleted.collectAsState()
+    val partEntries by viewModel.partEntries.collectAsState()
+    val emotionColors by viewModel.emotionColors.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
+
+    val extended = extendedColorScheme()
+    val dateFormatter = DateTimeFormatter.ofPattern("EEEE d MMMM", Locale.FRENCH)
 
     LaunchedEffect(partId) { viewModel.load(partId) }
     LaunchedEffect(isDeleted) { if (isDeleted) navController.popBackStack() }
@@ -132,7 +148,7 @@ fun PartReadScreen(navController: NavController, partId: Long) {
                     Text(p.description, style = MaterialTheme.typography.bodyLarge)
                 }
 
-                // Traits
+                // Traits de caractère
                 if (traits.isNotEmpty()) {
                     Text("Traits de caractère", style = MaterialTheme.typography.titleSmall)
                     FlowRow(
@@ -142,6 +158,48 @@ fun PartReadScreen(navController: NavController, partId: Long) {
                     ) {
                         traits.forEach { trait ->
                             AssistChip(onClick = {}, label = { Text(trait.label) })
+                        }
+                    }
+                }
+
+                // Apparitions dans les entrées
+                Text("Apparitions", style = MaterialTheme.typography.titleSmall)
+                if (partEntries.isEmpty()) {
+                    Text(
+                        "Aucune apparition confirmée",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                } else {
+                    val grouped = partEntries
+                        .groupBy { entry ->
+                            Instant.ofEpochMilli(entry.entryDate)
+                                .atZone(ZoneId.systemDefault())
+                                .toLocalDate()
+                        }
+                        .entries
+                        .sortedByDescending { it.key }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                        grouped.forEach { (date, dayEntries) ->
+                            Text(
+                                text = date.format(dateFormatter).replaceFirstChar { it.uppercase() },
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                            )
+                            HorizontalDivider()
+                            dayEntries.forEach { entry ->
+                                DaySheetEntryRow(
+                                    entry = entry,
+                                    onClick = { navController.navigate(Routes.entryDetail(entry.id)) },
+                                    extended = extended,
+                                    emotionColors = emotionColors[entry.id]
+                                )
+                                HorizontalDivider(
+                                    color = MaterialTheme.colorScheme.outlineVariant
+                                )
+                            }
                         }
                     }
                 }

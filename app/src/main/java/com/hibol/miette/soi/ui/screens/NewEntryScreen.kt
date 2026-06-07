@@ -41,7 +41,8 @@ fun NewEntryScreen(
             app.container.profileRepository,
             app.container.entryRepository,
             app.container.emotionRepository,
-            app.container.tagRepository
+            app.container.tagRepository,
+            app.container.partRepository
         )
     )
 

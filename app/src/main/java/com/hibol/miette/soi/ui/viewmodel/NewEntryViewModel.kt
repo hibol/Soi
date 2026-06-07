@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.hibol.miette.soi.data.entity.Emotion
 import com.hibol.miette.soi.data.repository.EmotionRepository
 import com.hibol.miette.soi.data.repository.EntryRepository
+import com.hibol.miette.soi.data.repository.PartRepository
 import com.hibol.miette.soi.data.repository.ProfileRepository
 import com.hibol.miette.soi.data.repository.TagRepository
 import com.hibol.miette.soi.ui.components.EmotionSelection
@@ -19,7 +20,8 @@ class NewEntryViewModel(
     private val profileRepository: ProfileRepository,
     private val entryRepository: EntryRepository,
     private val emotionRepository: EmotionRepository,
-    private val tagRepository: TagRepository
+    private val tagRepository: TagRepository,
+    private val partRepository: PartRepository
 ) : ViewModel() {
 
     private val _profileId = MutableStateFlow<Long?>(null)
@@ -105,20 +107,10 @@ class NewEntryViewModel(
         emotions: List<EmotionSelection>,
         tags: List<String>,
         isBlurred: Boolean = false
-    ) = saveEntry { profileId ->
-        if (entryId == null) {
-            entryRepository.createDreamEntry(
-                profileId = profileId,
-                entryDate = entryDate,
-                text = text,
-                memoryQuality = memoryQuality,
-                emotionIds = emotions.map { Pair(it.emotion.id, it.intensity) },
-                tagLabels = tags,
-                isBlurred = isBlurred
-            )
-        } else {
+    ) = saveEntry(text) { profileId ->
+        entryId?.let { id ->
             entryRepository.updateDreamEntry(
-                entryId = entryId,
+                entryId = id,
                 text = text,
                 memoryQuality = memoryQuality,
                 entryDate = entryDate,
@@ -126,7 +118,16 @@ class NewEntryViewModel(
                 tagLabels = tags,
                 isBlurred = isBlurred
             )
-        }
+            id
+        } ?: entryRepository.createDreamEntry(
+            profileId = profileId,
+            entryDate = entryDate,
+            text = text,
+            memoryQuality = memoryQuality,
+            emotionIds = emotions.map { Pair(it.emotion.id, it.intensity) },
+            tagLabels = tags,
+            isBlurred = isBlurred
+        )
     }
 
     fun saveSession(
@@ -136,26 +137,25 @@ class NewEntryViewModel(
         emotions: List<EmotionSelection>,
         tags: List<String>,
         isBlurred: Boolean = false
-    ) = saveEntry { profileId ->
-        if (entryId == null) {
-            entryRepository.createSessionEntry(
-                profileId = profileId,
-                entryDate = entryDate,
-                text = text,
-                emotionIds = emotions.map { Pair(it.emotion.id, it.intensity) },
-                tagLabels = tags,
-                isBlurred = isBlurred
-            )
-        } else {
+    ) = saveEntry(text) { profileId ->
+        entryId?.let { id ->
             entryRepository.updateSessionEntry(
-                entryId = entryId,
+                entryId = id,
                 text = text,
                 entryDate = entryDate,
                 emotionIds = emotions.map { Pair(it.emotion.id, it.intensity) },
                 tagLabels = tags,
                 isBlurred = isBlurred
             )
-        }
+            id
+        } ?: entryRepository.createSessionEntry(
+            profileId = profileId,
+            entryDate = entryDate,
+            text = text,
+            emotionIds = emotions.map { Pair(it.emotion.id, it.intensity) },
+            tagLabels = tags,
+            isBlurred = isBlurred
+        )
     }
 
     fun saveEvent(
@@ -165,32 +165,33 @@ class NewEntryViewModel(
         emotions: List<EmotionSelection>,
         tags: List<String>,
         isBlurred: Boolean = false
-    ) = saveEntry { profileId ->
-        if (entryId == null) {
-            entryRepository.createEventEntry(
-                profileId = profileId,
-                entryDate = entryDate,
-                text = text,
-                emotionIds = emotions.map { Pair(it.emotion.id, it.intensity) },
-                tagLabels = tags,
-                isBlurred = isBlurred
-            )
-        } else {
+    ) = saveEntry(text) { profileId ->
+        entryId?.let { id ->
             entryRepository.updateEventEntry(
-                entryId = entryId,
+                entryId = id,
                 text = text,
                 entryDate = entryDate,
                 emotionIds = emotions.map { Pair(it.emotion.id, it.intensity) },
                 tagLabels = tags,
                 isBlurred = isBlurred
             )
-        }
+            id
+        } ?: entryRepository.createEventEntry(
+            profileId = profileId,
+            entryDate = entryDate,
+            text = text,
+            emotionIds = emotions.map { Pair(it.emotion.id, it.intensity) },
+            tagLabels = tags,
+            isBlurred = isBlurred
+        )
     }
 
-    private fun saveEntry(block: suspend (profileId: Long) -> Unit) {
+    // Lance la détection en arrière-plan sans bloquer la navigation
+    private fun saveEntry(text: String?, block: suspend (profileId: Long) -> Long) {
         val profileId = _profileId.value ?: return
         viewModelScope.launch {
-            block(profileId)
+            val savedId = block(profileId)
+            launch { partRepository.detectAndLinkParts(savedId, text ?: "", profileId) }
             _entrySaved.value = true
         }
     }
@@ -199,7 +200,8 @@ class NewEntryViewModel(
         private val profileRepository: ProfileRepository,
         private val entryRepository: EntryRepository,
         private val emotionRepository: EmotionRepository,
-        private val tagRepository: TagRepository
+        private val tagRepository: TagRepository,
+        private val partRepository: PartRepository
     ) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             @Suppress("UNCHECKED_CAST")
@@ -207,7 +209,8 @@ class NewEntryViewModel(
                 profileRepository,
                 entryRepository,
                 emotionRepository,
-                tagRepository
+                tagRepository,
+                partRepository
             ) as T
         }
     }

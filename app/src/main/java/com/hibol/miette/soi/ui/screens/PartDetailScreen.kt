@@ -97,6 +97,7 @@ fun PartDetailScreen(navController: NavController, partId: Long?, initialRole: S
                     value = viewModel.name,
                     onValueChange = { viewModel.name = it },
                     label = { Text("Nom *") },
+                    placeholder = { Text("4 caractères min. pour la détection automatique") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     isError = saveError != null && viewModel.name.isBlank(),

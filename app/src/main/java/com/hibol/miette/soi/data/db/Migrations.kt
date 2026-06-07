@@ -77,6 +77,25 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
     }
 }
 
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS `entry_part` (
+                `entryId` INTEGER NOT NULL,
+                `partId` INTEGER NOT NULL,
+                `source` TEXT NOT NULL DEFAULT 'suggested',
+                PRIMARY KEY(`entryId`, `partId`),
+                FOREIGN KEY(`entryId`) REFERENCES `entry`(`id`) ON DELETE CASCADE,
+                FOREIGN KEY(`partId`) REFERENCES `part`(`id`) ON DELETE CASCADE
+            )
+        """.trimIndent())
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_entry_part_entryId` ON `entry_part`(`entryId`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_entry_part_partId` ON `entry_part`(`partId`)")
+        // session_entry_part remplacé par entry_part (couvre tous les types d'entrée)
+        db.execSQL("DROP TABLE IF EXISTS `session_entry_part`")
+    }
+}
+
 val MIGRATION_4_5 = object : Migration(4, 5) {
     override fun migrate(db: SupportSQLiteDatabase) {
         // Recréer part_trait avec une seule colonne label (labelIncl devient label)

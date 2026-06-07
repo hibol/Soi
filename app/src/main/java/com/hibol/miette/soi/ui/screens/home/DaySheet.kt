@@ -28,7 +28,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 @Composable
-internal fun DaySheetEntryRow(
+fun DaySheetEntryRow(
     entry: Entry,
     onClick: () -> Unit,
     extended: ExtendedColorScheme,

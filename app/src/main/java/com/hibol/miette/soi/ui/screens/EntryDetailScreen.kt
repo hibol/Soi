@@ -23,6 +23,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.hibol.miette.soi.SoiApplication
 import com.hibol.miette.soi.data.entity.EntryType
+import com.hibol.miette.soi.ui.components.EntryPartsSection
 import com.hibol.miette.soi.ui.navigation.Routes
 import com.hibol.miette.soi.ui.theme.colorFamilyForType
 import com.hibol.miette.soi.ui.theme.extendedColorScheme
@@ -44,7 +45,8 @@ fun EntryDetailScreen(
     val viewModel: EntryDetailViewModel = viewModel(
         factory = EntryDetailViewModel.Factory(
             app.container.entryRepository,
-            app.container.emotionRepository
+            app.container.emotionRepository,
+            app.container.partRepository
         )
     )
 
@@ -54,6 +56,8 @@ fun EntryDetailScreen(
     val tags by viewModel.tags.collectAsState()
     val dreamDetail by viewModel.dreamDetail.collectAsState()
     val isDeleted by viewModel.isDeleted.collectAsState()
+    val entryParts by viewModel.entryParts.collectAsState()
+    val allParts by viewModel.allParts.collectAsState()
 
     var showDeleteDialog by remember { mutableStateOf(false) }
     val prefs = remember { context.getSharedPreferences("soi_prefs", android.content.Context.MODE_PRIVATE) }
@@ -253,6 +257,19 @@ fun EntryDetailScreen(
                         }
                     }
                 }
+
+                // Parties mentionnées
+                val linkedPartIds = entryParts.map { it.partId }.toSet()
+                EntryPartsSection(
+                    entryParts = entryParts,
+                    availableParts = allParts.filter { it.id !in linkedPartIds },
+                    onConfirm = { viewModel.confirmPart(it) },
+                    onRemove = { viewModel.removePart(it) },
+                    onLink = { viewModel.linkPart(it) },
+                    onRedetect = { viewModel.redetect() },
+                    onNavigateToPart = { navController.navigate(Routes.partRead(it)) },
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         } ?: Box(
             modifier = Modifier.fillMaxSize(),

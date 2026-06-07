@@ -118,6 +118,7 @@ fun PartsListScreen(navController: NavController) {
             ) {
                 items(parts, key = { it.id }) { part ->
                     PartListItem(
+
                         part = part,
                         onClick = { navController.navigate(Routes.partRead(part.id)) }
                     )

@@ -1,11 +1,14 @@
 package com.hibol.miette.soi.data.repository
 
 import androidx.room.withTransaction
+import com.hibol.miette.soi.data.db.EntryPartRow
 import com.hibol.miette.soi.data.db.SoiDatabase
+import com.hibol.miette.soi.data.entity.Entry
+import com.hibol.miette.soi.data.entity.EntryPart
 import com.hibol.miette.soi.data.entity.Part
 import com.hibol.miette.soi.data.entity.PartTrait
 import com.hibol.miette.soi.data.entity.PartTraitLink
-import com.hibol.miette.soi.data.entity.SessionEntryPart
+import com.hibol.miette.soi.data.util.PartDetector
 import kotlinx.coroutines.flow.Flow
 
 class PartRepository(private val db: SoiDatabase) {
@@ -61,16 +64,40 @@ class PartRepository(private val db: SoiDatabase) {
         return PartTrait(id = id, label = trimmed, source = "manual")
     }
 
-    // ── SessionEntryPart ─────────────────────────────────────────────────────
+    // ── EntryPart ─────────────────────────────────────────────────────────────
 
-    suspend fun linkToSession(sessionEntryId: Long, partId: Long, source: String = "suggested") =
-        db.sessionEntryPartDao().insert(
-            SessionEntryPart(sessionEntryId = sessionEntryId, partId = partId, source = source)
-        )
+    fun getPartsForEntry(entryId: Long): Flow<List<EntryPartRow>> =
+        db.entryPartDao().getPartsForEntry(entryId)
 
-    suspend fun confirmLink(sessionEntryId: Long, partId: Long) =
-        db.sessionEntryPartDao().confirm(sessionEntryId, partId)
+    suspend fun detectAndLinkParts(entryId: Long, text: String, profileId: Long) {
+        if (text.isBlank()) return
+        val parts = db.partDao().getAllByProfileOnce(profileId)
+        val detected = PartDetector.detect(text, parts)
+        val existing = db.entryPartDao().getPartIdsForEntryOnce(entryId).toSet()
+        for (part in detected) {
+            if (part.id !in existing) {
+                db.entryPartDao().insert(EntryPart(entryId = entryId, partId = part.id))
+            }
+        }
+    }
 
-    fun getPartsForSession(sessionEntryId: Long): Flow<List<SessionEntryPart>> =
-        db.sessionEntryPartDao().getBySession(sessionEntryId)
+    suspend fun confirmEntryPart(entryId: Long, partId: Long) =
+        db.entryPartDao().confirm(entryId, partId)
+
+    suspend fun unconfirmEntryPart(entryId: Long, partId: Long) =
+        db.entryPartDao().unconfirm(entryId, partId)
+
+    suspend fun removeEntryPart(entryId: Long, partId: Long) =
+        db.entryPartDao().delete(entryId, partId)
+
+    suspend fun linkEntryPartExplicit(entryId: Long, partId: Long) =
+        db.entryPartDao().insert(EntryPart(entryId = entryId, partId = partId, source = "explicit"))
+
+    // Alias pour le bouton refresh — même logique additive que detectAndLink
+    suspend fun redetectParts(entryId: Long, text: String, profileId: Long) =
+        detectAndLinkParts(entryId, text, profileId)
+
+    fun getExplicitEntriesForPart(partId: Long): Flow<List<Entry>> =
+        db.entryPartDao().getExplicitEntriesForPart(partId)
+
 }
