@@ -13,6 +13,9 @@ import com.hibol.miette.soi.data.entity.EntryType
 import com.hibol.miette.soi.ui.screens.EntryDetailScreen
 import com.hibol.miette.soi.ui.screens.HomeScreen
 import com.hibol.miette.soi.ui.screens.NewEntryScreen
+import com.hibol.miette.soi.ui.screens.PartDetailScreen
+import com.hibol.miette.soi.ui.screens.PartReadScreen
+import com.hibol.miette.soi.ui.screens.PartsListScreen
 import com.hibol.miette.soi.ui.screens.SetupScreen
 import com.hibol.miette.soi.ui.screens.SplashScreen
 import com.hibol.miette.soi.ui.viewmodel.SetupViewModel
@@ -26,8 +29,16 @@ object Routes {
     fun entryDetail(entryId: Long) = "entry_detail/$entryId"
     const val NEW_ENTRY = "new_entry/{type}?date={date}&entryId={entryId}"
     const val PARTS = "parts"
-    const val PART_DETAIL = "part/{partId}"
+    const val PART_READ = "part_read/{partId}"
+    const val PART_DETAIL = "part/{partId}?role={role}"
     const val SETTINGS = "settings"
+
+    fun partRead(partId: Long) = "part_read/$partId"
+
+    fun partDetail(partId: Long = 0L, role: String? = null): String {
+        val base = "part/$partId"
+        return if (role != null) "$base?role=$role" else base
+    }
 
     fun newEntry(type: EntryType, date: Long? = null, entryId: Long? = null): String {
         var route = "new_entry/${type.value}"
@@ -94,7 +105,25 @@ fun NavGraph(
             EntryDetailScreen(navController = navController, entryId = entryId)
         }
         composable(Routes.PARTS) {
-            // PartsScreen(navController)  — à venir
+            PartsListScreen(navController)
+        }
+        composable(
+            route = Routes.PART_READ,
+            arguments = listOf(navArgument("partId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val partId = backStackEntry.arguments?.getLong("partId") ?: return@composable
+            PartReadScreen(navController = navController, partId = partId)
+        }
+        composable(
+            route = Routes.PART_DETAIL,
+            arguments = listOf(
+                navArgument("partId") { type = NavType.LongType },
+                navArgument("role") { type = NavType.StringType; nullable = true; defaultValue = null }
+            )
+        ) { backStackEntry ->
+            val partId = backStackEntry.arguments?.getLong("partId").takeIf { it != 0L }
+            val role = backStackEntry.arguments?.getString("role")
+            PartDetailScreen(navController = navController, partId = partId, initialRole = role)
         }
         composable(Routes.SETTINGS) {
             // SettingsScreen(navController)  — à venir

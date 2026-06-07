@@ -2,19 +2,29 @@ package com.hibol.miette.soi.data.db
 
 import android.content.Context
 import com.hibol.miette.soi.data.entity.Emotion
+import com.hibol.miette.soi.data.entity.PartTrait
 
 object DatabaseInitializer {
 
-    // Incrémenter à chaque modification de la liste des émotions
+    // Incrémenter à chaque modification du catalogue correspondant
     private const val EMOTION_CATALOG_VERSION = 3
+    private const val TRAIT_CATALOG_VERSION = 2  // v2 : passage à colonne label unique
     private const val PREFS_NAME = "soi_prefs"
     private const val PREFS_KEY_EMOTION_VERSION = "emotion_catalog_version"
+    private const val PREFS_KEY_TRAIT_VERSION = "part_trait_catalog_version"
 
     suspend fun sync(db: SoiDatabase, context: Context) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        if (prefs.getInt(PREFS_KEY_EMOTION_VERSION, 0) == EMOTION_CATALOG_VERSION) return
-        doSync(db)
-        prefs.edit().putInt(PREFS_KEY_EMOTION_VERSION, EMOTION_CATALOG_VERSION).apply()
+
+        if (prefs.getInt(PREFS_KEY_EMOTION_VERSION, 0) != EMOTION_CATALOG_VERSION) {
+            doSync(db)
+            prefs.edit().putInt(PREFS_KEY_EMOTION_VERSION, EMOTION_CATALOG_VERSION).apply()
+        }
+
+        if (prefs.getInt(PREFS_KEY_TRAIT_VERSION, 0) != TRAIT_CATALOG_VERSION) {
+            doSyncTraits(db)
+            prefs.edit().putInt(PREFS_KEY_TRAIT_VERSION, TRAIT_CATALOG_VERSION).apply()
+        }
     }
 
     private suspend fun doSync(db: SoiDatabase) {
@@ -84,6 +94,74 @@ object DatabaseInitializer {
             emotionDao.deleteById(emotion.id)
         }
     }
+
+    private suspend fun doSyncTraits(db: SoiDatabase) {
+        val dao = db.partTraitDao()
+        // INSERT OR IGNORE : les traits existants (même label) ne sont jamais écrasés
+        for (trait in buildTraitCatalog()) {
+            dao.insert(trait)
+        }
+    }
+
+    private fun buildTraitCatalog(): List<PartTrait> = listOf(
+        // Protection / contrôle
+        PartTrait(label = "hypervigilant·e"),
+        PartTrait(label = "contrôlant·e"),
+        PartTrait(label = "perfectionniste"),
+        PartTrait(label = "rigide"),
+        PartTrait(label = "méfiant·e"),
+        PartTrait(label = "prudent·e"),
+        PartTrait(label = "évitant·e"),
+        PartTrait(label = "replié·e"),
+        PartTrait(label = "dissocié·e"),
+        PartTrait(label = "rationnel·le"),
+        PartTrait(label = "intellectuel·le"),
+        // Impulsivité / réactivité
+        PartTrait(label = "impulsif·ve"),
+        PartTrait(label = "réactif·ve"),
+        PartTrait(label = "explosif·ve"),
+        PartTrait(label = "agité·e"),
+        PartTrait(label = "téméraire"),
+        // Relation aux autres
+        PartTrait(label = "dépendant·e"),
+        PartTrait(label = "fusionnel·le"),
+        PartTrait(label = "isolé·e"),
+        PartTrait(label = "séducteur·rice"),
+        PartTrait(label = "loyal·e"),
+        PartTrait(label = "généreux·se"),
+        PartTrait(label = "empathique"),
+        PartTrait(label = "sensible"),
+        PartTrait(label = "discret·e"),
+        PartTrait(label = "invisible"),
+        // Rapport à soi
+        PartTrait(label = "honteux·se"),
+        PartTrait(label = "coupable"),
+        PartTrait(label = "auto-saboteur·se"),
+        PartTrait(label = "autocritique"),
+        PartTrait(label = "grandiose"),
+        PartTrait(label = "fier·ère"),
+        PartTrait(label = "authentique"),
+        // Ressources
+        PartTrait(label = "créatif·ve"),
+        PartTrait(label = "curieux·se"),
+        PartTrait(label = "courageux·se"),
+        PartTrait(label = "humoristique"),
+        PartTrait(label = "résilient·e"),
+        PartTrait(label = "intuitif·ve"),
+        PartTrait(label = "adaptable"),
+        PartTrait(label = "persévérant·e"),
+        PartTrait(label = "doux·ce"),
+        PartTrait(label = "tendre"),
+        PartTrait(label = "sage"),
+        PartTrait(label = "ancré·e"),
+        // Valeurs
+        PartTrait(label = "sécurisant·e"),
+        PartTrait(label = "autonome"),
+        PartTrait(label = "connecté·e"),
+        PartTrait(label = "libre"),
+        PartTrait(label = "juste"),
+        PartTrait(label = "reconnaissant·e")
+    )
 
     private data class PrimaryEntry(
         val label: String,

@@ -44,3 +44,58 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
         db.execSQL("ALTER TABLE tag_new RENAME TO tag")
     }
 }
+
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS `part_trait` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `labelMasc` TEXT NOT NULL,
+                `labelFem` TEXT NOT NULL,
+                `labelIncl` TEXT NOT NULL,
+                `source` TEXT NOT NULL
+            )
+        """.trimIndent())
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_part_trait_labelMasc` ON `part_trait`(`labelMasc`)"
+        )
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS `part_trait_link` (
+                `partId` INTEGER NOT NULL,
+                `traitId` INTEGER NOT NULL,
+                PRIMARY KEY(`partId`, `traitId`),
+                FOREIGN KEY(`partId`) REFERENCES `part`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                FOREIGN KEY(`traitId`) REFERENCES `part_trait`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+        """.trimIndent())
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_part_trait_link_partId` ON `part_trait_link`(`partId`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_part_trait_link_traitId` ON `part_trait_link`(`traitId`)"
+        )
+    }
+}
+
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Recréer part_trait avec une seule colonne label (labelIncl devient label)
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS `part_trait_new` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `label` TEXT NOT NULL,
+                `source` TEXT NOT NULL
+            )
+        """.trimIndent())
+        db.execSQL(
+            "CREATE UNIQUE INDEX `index_part_trait_label` ON `part_trait_new`(`label`)"
+        )
+        // Copie des données existantes : labelIncl devient label
+        db.execSQL("""
+            INSERT OR IGNORE INTO `part_trait_new` (`id`, `label`, `source`)
+            SELECT `id`, `labelIncl`, `source` FROM `part_trait`
+        """.trimIndent())
+        db.execSQL("DROP TABLE `part_trait`")
+        db.execSQL("ALTER TABLE `part_trait_new` RENAME TO `part_trait`")
+    }
+}

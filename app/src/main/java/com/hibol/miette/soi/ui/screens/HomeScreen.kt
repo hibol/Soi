@@ -17,11 +17,13 @@ import androidx.navigation.NavController
 import com.hibol.miette.soi.SoiApplication
 import com.hibol.miette.soi.data.entity.Entry
 import com.hibol.miette.soi.data.entity.EntryType
+import com.hibol.miette.soi.ui.navigation.MainBottomBar
 import com.hibol.miette.soi.ui.navigation.Routes
 import com.hibol.miette.soi.ui.screens.home.CalendarView
 import com.hibol.miette.soi.ui.screens.home.EntryTypePicker
 import com.hibol.miette.soi.ui.screens.home.MonthEntryList
 import com.hibol.miette.soi.ui.viewmodel.HomeViewModel
+import androidx.navigation.compose.currentBackStackEntryAsState
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
@@ -46,6 +48,7 @@ fun HomeScreen(navController: NavController) {
     val emotionColors by viewModel.emotionColors.collectAsState()
     var showPicker by remember { mutableStateOf(false) }
     var pickerDate by remember { mutableStateOf<LocalDate?>(null) }
+    val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
 
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -85,6 +88,9 @@ fun HomeScreen(navController: NavController) {
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
+        bottomBar = {
+            MainBottomBar(currentRoute = currentRoute, navController = navController)
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = {
                 pickerDate = null
