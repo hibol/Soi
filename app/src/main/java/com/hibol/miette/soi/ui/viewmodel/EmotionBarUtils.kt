@@ -4,37 +4,56 @@ import androidx.compose.ui.graphics.Color
 import com.hibol.miette.soi.data.entity.Emotion
 import com.hibol.miette.soi.data.entity.EntryEmotion
 
-data class EmotionBarData(
-    val colorWeights: List<Pair<Color, Int>>,
-    val intensityRatio: Float  // total intensité / (nb émotions × 5), dans [0, 1]
+data class EmotionDot(
+    val color: Color,
+    val intensity: Int,
+    val angle: Float     // radians, -π/2 = sommet
 )
 
-fun computeEmotionColors(
+data class MiniConstellationData(
+    val dots: List<EmotionDot>
+)
+
+fun computeMiniConstellations(
     entryEmotions: List<EntryEmotion>,
     allEmotions: List<Emotion>
-): Map<Long, EmotionBarData> = buildMap {
-    entryEmotions.groupBy { it.entryId }.forEach { (entryId, emotions) ->
-        val totalActual = emotions.sumOf { it.intensity }
-        val maxPossible = emotions.size * 5
-        val ratio = if (maxPossible > 0) totalActual.toFloat() / maxPossible else 0f
+): Map<Long, MiniConstellationData> {
+    // Même ordre que le DAO : ORDER BY label ASC — cohérent avec EmotionConstellationView
+    val primaries = allEmotions.filter { it.level == 1 }.sortedBy { it.label }
+    val n = primaries.size
+    if (n == 0) return emptyMap()
 
-        val primaryIntensity = mutableMapOf<Long, Int>()
-        emotions.forEach { ee ->
-            val emotion = allEmotions.firstOrNull { it.id == ee.emotionId } ?: return@forEach
-            val primaryId = if (emotion.level == 1) emotion.id else emotion.parentId ?: return@forEach
-            primaryIntensity[primaryId] = (primaryIntensity[primaryId] ?: 0) + ee.intensity
+    // Angle de chaque primaire sur l'anneau (-π/2 = sommet, sens horaire)
+    val angleOf = primaries.mapIndexed { i, e ->
+        e.id to (-Math.PI / 2 + (i + 0.5) * 2 * Math.PI / n).toFloat()
+    }.toMap()
+
+    // Résolution émotion → primaire parente
+    val primaryIdOf = buildMap<Long, Long> {
+        allEmotions.forEach { e ->
+            put(e.id, if (e.level == 1) e.id else e.parentId ?: return@forEach)
         }
-        if (primaryIntensity.isEmpty()) return@forEach
+    }
 
-        val colorWeights = primaryIntensity
-            .entries
-            .sortedByDescending { it.value }
-            .mapNotNull { (primaryId, intensity) ->
-                val hex = allEmotions.firstOrNull { it.id == primaryId }?.color ?: return@mapNotNull null
-                val color = try { Color(android.graphics.Color.parseColor(hex)) }
-                catch (_: IllegalArgumentException) { return@mapNotNull null }
-                color to intensity
+    return buildMap {
+        entryEmotions.groupBy { it.entryId }.forEach { (entryId, emotions) ->
+            val intensityByPrimary = mutableMapOf<Long, Int>()
+            emotions.forEach { ee ->
+                val primaryId = primaryIdOf[ee.emotionId] ?: return@forEach
+                intensityByPrimary[primaryId] = (intensityByPrimary[primaryId] ?: 0) + ee.intensity
             }
-        if (colorWeights.isNotEmpty()) put(entryId, EmotionBarData(colorWeights, ratio))
+
+            val dots = intensityByPrimary.mapNotNull { (primaryId, totalIntensity) ->
+                val angle = angleOf[primaryId] ?: return@mapNotNull null
+                val primary = primaries.firstOrNull { it.id == primaryId } ?: return@mapNotNull null
+                val color = try {
+                    Color(android.graphics.Color.parseColor(primary.color))
+                } catch (_: Exception) { return@mapNotNull null }
+                val clamped = totalIntensity.coerceIn(1, 5)
+                EmotionDot(color = color, intensity = clamped, angle = angle)
+            }
+
+            if (dots.isNotEmpty()) put(entryId, MiniConstellationData(dots))
+        }
     }
 }

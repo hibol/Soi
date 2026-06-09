@@ -17,7 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.hibol.miette.soi.data.entity.Entry
-import com.hibol.miette.soi.ui.viewmodel.EmotionBarData
+import com.hibol.miette.soi.ui.viewmodel.MiniConstellationData
 import com.hibol.miette.soi.ui.theme.extendedColorScheme
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -27,7 +27,7 @@ import java.util.Locale
 @Composable
 fun MonthEntryList(
     groupedEntries: List<Pair<LocalDate, List<Entry>>>,
-    emotionColors: Map<Long, EmotionBarData>,
+    emotionColors: Map<Long, MiniConstellationData>,
     listState: LazyListState,
     onEntryClick: (Long) -> Unit,
     modifier: Modifier = Modifier
@@ -68,7 +68,7 @@ fun MonthEntryList(
                     entry = entry,
                     onClick = { onEntryClick(entry.id) },
                     extended = extended,
-                    emotionColors = emotionColors[entry.id]
+                    constellation = emotionColors[entry.id]
                 )
                 HorizontalDivider(
                     modifier = Modifier.padding(horizontal = 16.dp),

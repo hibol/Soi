@@ -194,7 +194,7 @@ fun PartReadScreen(navController: NavController, partId: Long) {
                                     entry = entry,
                                     onClick = { navController.navigate(Routes.entryDetail(entry.id)) },
                                     extended = extended,
-                                    emotionColors = emotionColors[entry.id]
+                                    constellation = emotionColors[entry.id]
                                 )
                                 HorizontalDivider(
                                     color = MaterialTheme.colorScheme.outlineVariant

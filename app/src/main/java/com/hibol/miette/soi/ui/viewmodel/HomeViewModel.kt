@@ -3,9 +3,7 @@ package com.hibol.miette.soi.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.hibol.miette.soi.data.entity.Emotion
 import com.hibol.miette.soi.data.entity.Entry
-import com.hibol.miette.soi.data.entity.EntryEmotion
 import com.hibol.miette.soi.data.repository.EmotionRepository
 import com.hibol.miette.soi.data.repository.EntryRepository
 import com.hibol.miette.soi.data.repository.ProfileRepository
@@ -13,7 +11,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.YearMonth
 
@@ -32,8 +29,8 @@ class HomeViewModel(
     private val _currentMonth = MutableStateFlow(YearMonth.now())
     val currentMonth: StateFlow<YearMonth> = _currentMonth
 
-    private val _emotionColors = MutableStateFlow<Map<Long, EmotionBarData>>(emptyMap())
-    val emotionColors: StateFlow<Map<Long, EmotionBarData>> = _emotionColors
+    private val _emotionColors = MutableStateFlow<Map<Long, MiniConstellationData>>(emptyMap())
+    val emotionColors: StateFlow<Map<Long, MiniConstellationData>> = _emotionColors
 
     private val _profileId = MutableStateFlow<Long?>(null)
 
@@ -48,7 +45,7 @@ class HomeViewModel(
                         entryRepository.getAllEmotionsForProfile(p.id),
                         emotionRepository.getAllEmotions()
                     ) { entries, entryEmotions, allEmotions ->
-                        entries to computeEmotionColors(entryEmotions, allEmotions)
+                        entries to computeMiniConstellations(entryEmotions, allEmotions)
                     }.collectLatest { (entries, colors) ->
                         _entries.value = entries
                         _emotionColors.value = colors

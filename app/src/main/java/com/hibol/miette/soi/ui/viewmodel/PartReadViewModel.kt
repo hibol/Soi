@@ -25,7 +25,7 @@ class PartReadViewModel(
     val traits = MutableStateFlow<List<PartTrait>>(emptyList())
     val isDeleted = MutableStateFlow(false)
     val partEntries = MutableStateFlow<List<Entry>>(emptyList())
-    val emotionColors = MutableStateFlow<Map<Long, EmotionBarData>>(emptyMap())
+    val emotionColors = MutableStateFlow<Map<Long, MiniConstellationData>>(emptyMap())
 
     fun load(partId: Long) {
         viewModelScope.launch {
@@ -43,7 +43,7 @@ class PartReadViewModel(
             ) { entries, allEntryEmotions, allEmotions ->
                 partEntries.value = entries
                 val entryIds = entries.map { it.id }.toSet()
-                computeEmotionColors(allEntryEmotions.filter { it.entryId in entryIds }, allEmotions)
+                computeMiniConstellations(allEntryEmotions.filter { it.entryId in entryIds }, allEmotions)
             }.collect { colors ->
                 emotionColors.value = colors
             }
