@@ -1,6 +1,5 @@
 package com.hibol.miette.soi.ui.screens.home
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -13,14 +12,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.background
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.hibol.miette.soi.data.entity.Entry
-import com.hibol.miette.soi.ui.theme.colorFamilyForType
-import com.hibol.miette.soi.ui.theme.extendedColorScheme
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.TextStyle
@@ -73,7 +73,7 @@ fun CalendarView(
                 week.forEach { day ->
                     DayCell(
                         day = day,
-                        dayEntries = entriesByDate[day.date] ?: emptyList(),
+                        hasEntries = (entriesByDate[day.date]?.isNotEmpty()) == true,
                         onClick = { if (day.isCurrentMonth) onDayClick(day.date) },
                         onLongClick = { if (day.isCurrentMonth) onDayLongClick(day.date) },
                         modifier = Modifier.weight(1f)
@@ -130,18 +130,29 @@ private fun DayOfWeekHeader() {
 @Composable
 private fun DayCell(
     day: CalendarDay,
-    dayEntries: List<Entry>,
+    hasEntries: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val isToday = day.date == LocalDate.now()
+    val textColor = when {
+        !day.isCurrentMonth -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+        isToday -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.onSurface
+    }
+    val fontWeight = if (isToday || hasEntries) FontWeight.Bold else null
 
     Box(
         modifier = modifier
             .aspectRatio(1f)
             .padding(2.dp)
             .clip(CircleShape)
+            .then(
+                if (hasEntries) Modifier.background(
+                    Brush.radialGradient(listOf(textColor.copy(alpha = 0.30f), Color.Transparent))
+                ) else Modifier
+            )
             .combinedClickable(
                 enabled = day.isCurrentMonth,
                 onClick = onClick,
@@ -149,39 +160,11 @@ private fun DayCell(
             ),
         contentAlignment = Alignment.Center
     ) {
-        if (dayEntries.isNotEmpty()) {
-            EntryPieChart(entries = dayEntries)
-        }
         Text(
             text = day.date.dayOfMonth.toString(),
             style = MaterialTheme.typography.bodySmall,
-            color = when {
-                !day.isCurrentMonth -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                dayEntries.isNotEmpty() -> Color.White
-                isToday -> MaterialTheme.colorScheme.primary
-                else -> MaterialTheme.colorScheme.onSurface
-            },
-            fontWeight = if (isToday) androidx.compose.ui.text.font.FontWeight.Bold else null
+            color = textColor,
+            fontWeight = fontWeight
         )
-    }
-}
-
-@Composable
-private fun EntryPieChart(entries: List<Entry>) {
-    val extended = extendedColorScheme()
-    val typeCounts = entries.groupBy { it.type }
-    val total = entries.size.toFloat()
-    Canvas(modifier = Modifier.fillMaxSize(0.7f).aspectRatio(1f)) {
-        var startAngle = -90f
-        typeCounts.forEach { (type, typeEntries) ->
-            val sweepAngle = 360f * (typeEntries.size / total)
-            drawArc(
-                color = extended.colorFamilyForType(type).color,
-                startAngle = startAngle,
-                sweepAngle = sweepAngle,
-                useCenter = true
-            )
-            startAngle += sweepAngle
-        }
     }
 }
