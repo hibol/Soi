@@ -16,9 +16,10 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -180,25 +181,31 @@ fun PartReadScreen(navController: NavController, partId: Long) {
                         .entries
                         .sortedByDescending { it.key }
 
-                    Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         grouped.forEach { (date, dayEntries) ->
-                            Text(
-                                text = date.format(dateFormatter).replaceFirstChar { it.uppercase() },
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                            )
-                            HorizontalDivider()
-                            dayEntries.forEach { entry ->
-                                DaySheetEntryRow(
-                                    entry = entry,
-                                    onClick = { navController.navigate(Routes.entryDetail(entry.id)) },
-                                    extended = extended,
-                                    constellation = emotionColors[entry.id]
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                                 )
-                                HorizontalDivider(
-                                    color = MaterialTheme.colorScheme.outlineVariant
-                                )
+                            ) {
+                                Column {
+                                    Text(
+                                        text = date.format(dateFormatter).replaceFirstChar { it.uppercase() },
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.padding(start = 12.dp, end = 16.dp, top = 10.dp, bottom = 2.dp)
+                                    )
+                                    dayEntries.forEach { entry ->
+                                        DaySheetEntryRow(
+                                            entry = entry,
+                                            onClick = { navController.navigate(Routes.entryDetail(entry.id)) },
+                                            extended = extended,
+                                            constellation = emotionColors[entry.id]
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

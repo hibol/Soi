@@ -122,25 +122,32 @@ fun HomeScreen(navController: NavController) {
                 .padding(innerPadding)
         ) {
 
-            CalendarView(
-                entries = entries,
-                currentMonth = currentMonth,
-                onMonthChange = { newMonth -> viewModel.setMonth(newMonth) },
-                onDayClick = { date ->
-                    dayIndexMap[date]?.let { index ->
-                        coroutineScope.launch {
-                            listState.animateScrollToItem(index)
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                )
+            ) {
+                CalendarView(
+                    entries = entries,
+                    currentMonth = currentMonth,
+                    onMonthChange = { newMonth -> viewModel.setMonth(newMonth) },
+                    onDayClick = { date ->
+                        dayIndexMap[date]?.let { index ->
+                            coroutineScope.launch {
+                                listState.animateScrollToItem(index)
+                            }
                         }
-                    }
-                },
-                onDayLongClick = { date ->
-                    pickerDate = date
-                    showPicker = true
-                },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            HorizontalDivider()
+                    },
+                    onDayLongClick = { date ->
+                        pickerDate = date
+                        showPicker = true
+                    },
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                )
+            }
 
             MonthEntryList(
                 groupedEntries = groupedEntries,

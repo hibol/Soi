@@ -12,10 +12,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.foundation.background
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -136,11 +135,17 @@ private fun DayCell(
     modifier: Modifier = Modifier
 ) {
     val isToday = day.date == LocalDate.now()
+    val primary = MaterialTheme.colorScheme.primary
     val textColor = when {
         !day.isCurrentMonth -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-        isToday -> MaterialTheme.colorScheme.primary
+        isToday || hasEntries -> primary
         else -> MaterialTheme.colorScheme.onSurface
     }
+    val glow = if (day.isCurrentMonth && hasEntries) Shadow(
+        color = primary.copy(alpha = 0.75f),
+        offset = Offset.Zero,
+        blurRadius = 18f
+    ) else null
     val fontWeight = if (isToday || hasEntries) FontWeight.Bold else null
 
     Box(
@@ -148,11 +153,6 @@ private fun DayCell(
             .aspectRatio(1f)
             .padding(2.dp)
             .clip(CircleShape)
-            .then(
-                if (hasEntries) Modifier.background(
-                    Brush.radialGradient(listOf(textColor.copy(alpha = 0.30f), Color.Transparent))
-                ) else Modifier
-            )
             .combinedClickable(
                 enabled = day.isCurrentMonth,
                 onClick = onClick,
@@ -162,7 +162,7 @@ private fun DayCell(
     ) {
         Text(
             text = day.date.dayOfMonth.toString(),
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.bodySmall.copy(shadow = glow),
             color = textColor,
             fontWeight = fontWeight
         )
