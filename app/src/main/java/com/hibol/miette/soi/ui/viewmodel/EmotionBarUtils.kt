@@ -37,20 +37,19 @@ fun computeMiniConstellations(
 
     return buildMap {
         entryEmotions.groupBy { it.entryId }.forEach { (entryId, emotions) ->
-            val intensityByPrimary = mutableMapOf<Long, Int>()
+            val maxIntensityByPrimary = mutableMapOf<Long, Int>()
             emotions.forEach { ee ->
                 val primaryId = primaryIdOf[ee.emotionId] ?: return@forEach
-                intensityByPrimary[primaryId] = (intensityByPrimary[primaryId] ?: 0) + ee.intensity
+                maxIntensityByPrimary[primaryId] = maxOf(maxIntensityByPrimary[primaryId] ?: 0, ee.intensity)
             }
 
-            val dots = intensityByPrimary.mapNotNull { (primaryId, totalIntensity) ->
+            val dots = maxIntensityByPrimary.mapNotNull { (primaryId, maxIntensity) ->
                 val angle = angleOf[primaryId] ?: return@mapNotNull null
                 val primary = primaries.firstOrNull { it.id == primaryId } ?: return@mapNotNull null
                 val color = try {
                     Color(android.graphics.Color.parseColor(primary.color))
                 } catch (_: Exception) { return@mapNotNull null }
-                val clamped = totalIntensity.coerceIn(1, 5)
-                EmotionDot(color = color, intensity = clamped, angle = angle)
+                EmotionDot(color = color, intensity = maxIntensity, angle = angle)
             }
 
             if (dots.isNotEmpty()) put(entryId, MiniConstellationData(dots))

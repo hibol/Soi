@@ -111,7 +111,11 @@ fun NewEntryScreen(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let { entryDate = it }
+                    datePickerState.selectedDateMillis?.let { selectedMillis ->
+                        val newDate = Instant.ofEpochMilli(selectedMillis).atZone(ZoneId.of("UTC")).toLocalDate()
+                        val existingTime = Instant.ofEpochMilli(entryDate).atZone(ZoneId.systemDefault()).toLocalTime()
+                        entryDate = newDate.atTime(existingTime).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                    }
                     showDatePicker = false
                 }) { Text("OK") }
             },
