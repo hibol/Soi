@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.hibol.miette.soi.data.entity.Entry
 import com.hibol.miette.soi.data.entity.EntryPart
+import com.hibol.miette.soi.data.entity.PartCount
 import kotlinx.coroutines.flow.Flow
 
 data class EntryPartRow(
@@ -48,4 +49,17 @@ interface EntryPartDao {
         ORDER BY e.entryDate DESC
     """)
     fun getExplicitEntriesForPart(partId: Long): Flow<List<Entry>>
+
+    @Query("""
+        SELECT p.name AS name, COUNT(*) AS count
+        FROM entry_part ep
+        INNER JOIN part p ON ep.partId = p.id
+        INNER JOIN entry e ON ep.entryId = e.id
+        WHERE e.profileId = :profileId
+          AND e.entryDate >= :fromMillis AND e.entryDate < :toMillis
+        GROUP BY ep.partId
+        ORDER BY count DESC
+        LIMIT :limit
+    """)
+    fun getTopExplicitPartsByProfile(profileId: Long, fromMillis: Long, toMillis: Long, limit: Int): Flow<List<PartCount>>
 }

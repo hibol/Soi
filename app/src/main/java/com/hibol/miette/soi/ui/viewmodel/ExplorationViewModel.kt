@@ -5,11 +5,21 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.hibol.miette.soi.data.entity.Emotion
 import com.hibol.miette.soi.data.entity.EmotionTrendPoint
+import com.hibol.miette.soi.data.entity.Entry
 import com.hibol.miette.soi.data.entity.EntryType
+import com.hibol.miette.soi.data.entity.GlobalStats
+import com.hibol.miette.soi.data.entity.MemoryQualityCount
+import com.hibol.miette.soi.data.entity.PartCount
+import com.hibol.miette.soi.data.entity.PeriodStats
+import com.hibol.miette.soi.data.entity.TagCount
 import com.hibol.miette.soi.data.entity.TopSecondaryEmotion
 import com.hibol.miette.soi.data.repository.EmotionRepository
 import com.hibol.miette.soi.data.repository.EntryRepository
+import com.hibol.miette.soi.data.repository.PartRepository
 import com.hibol.miette.soi.data.repository.ProfileRepository
+import java.time.Instant
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -67,7 +77,8 @@ private data class HeatmapInputs(
 class ExplorationViewModel(
     private val profileRepository: ProfileRepository,
     private val entryRepository: EntryRepository,
-    private val emotionRepository: EmotionRepository
+    private val emotionRepository: EmotionRepository,
+    private val partRepository: PartRepository
 ) : ViewModel() {
 
     private val _selectedPeriod = MutableStateFlow(Period.WEEK)
@@ -102,6 +113,82 @@ class ExplorationViewModel(
 
     fun releaseCell() {
         _selectedCell.value = null
+    }
+
+    // ─── Statistiques globales (toute la durée de vie du journal) ────────────
+
+    val globalStats: StateFlow<GlobalStats?> = profileRepository.getProfile()
+        .flatMapLatest { profile ->
+            if (profile == null) return@flatMapLatest flowOf(null)
+            entryRepository.getAllByProfile(profile.id).map { entries ->
+                val zone = ZoneId.systemDefault()
+                val today = LocalDate.now()
+                val firstDate = entries.minByOrNull { it.entryDate }
+                    ?.let { Instant.ofEpochMilli(it.entryDate).atZone(zone).toLocalDate() }
+                val activeSinceDays = if (firstDate != null)
+                    ChronoUnit.DAYS.between(firstDate, today) else 0L
+                val (current, record) = computeStreaks(entries, zone, today)
+                GlobalStats(
+                    totalEntries = entries.size,
+                    activeSinceDays = activeSinceDays,
+                    currentStreak = current,
+                    recordStreak = record
+                )
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    // ─── Statistiques de période (réactives au sélecteur) ────────────────────
+
+    val periodStats: StateFlow<PeriodStats?> = combine(
+        _selectedPeriod,
+        profileRepository.getProfile()
+    ) { period, profile -> period to profile }
+        .flatMapLatest { (period, profile) ->
+            if (profile == null) return@flatMapLatest flowOf(null)
+            val now = System.currentTimeMillis()
+            val fromMillis = now - period.days.toLong() * 86_400_000L
+            combine(
+                entryRepository.getByDateRange(profile.id, fromMillis, now),
+                entryRepository.getMemoryQualityCounts(profile.id, fromMillis, now),
+                entryRepository.getTopTags(profile.id, fromMillis, now),
+                partRepository.getTopExplicitParts(profile.id, fromMillis, now)
+            ) { entries, memQuality, tags, parts ->
+                val zone = ZoneId.systemDefault()
+                val weeks = period.days / 7.0f
+                val byType = entries.groupingBy { entry ->
+                    EntryType.values().find { it.value == entry.entryType }
+                }.eachCount().filterKeys { it != null }.mapKeys { it.key!! }
+                val topDow = entries
+                    .groupingBy { Instant.ofEpochMilli(it.entryDate).atZone(zone).dayOfWeek.value }
+                    .eachCount().maxByOrNull { it.value }?.key
+                PeriodStats(
+                    byType = byType,
+                    avgPerWeek = if (weeks > 0f) entries.size / weeks else 0f,
+                    topDayOfWeek = topDow,
+                    memoryQuality = memQuality,
+                    topTags = tags,
+                    topParts = parts
+                )
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    private fun computeStreaks(entries: List<Entry>, zone: ZoneId, today: LocalDate): Pair<Int, Int> {
+        val dates = entries.map {
+            Instant.ofEpochMilli(it.entryDate).atZone(zone).toLocalDate()
+        }.toSet()
+        if (dates.isEmpty()) return 0 to 0
+        var current = 0
+        var d = if (today in dates) today else today.minusDays(1)
+        while (d in dates) { current++; d = d.minusDays(1) }
+        val sorted = dates.sorted()
+        var record = 1; var run = 1
+        for (i in 1 until sorted.size) {
+            run = if (sorted[i] == sorted[i - 1].plusDays(1)) run + 1 else 1
+            if (run > record) record = run
+        }
+        return current to record
     }
 
     val heatmapUiState: StateFlow<HeatmapUiState> = combine(
@@ -224,11 +311,12 @@ class ExplorationViewModel(
     class Factory(
         private val profileRepository: ProfileRepository,
         private val entryRepository: EntryRepository,
-        private val emotionRepository: EmotionRepository
+        private val emotionRepository: EmotionRepository,
+        private val partRepository: PartRepository
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            ExplorationViewModel(profileRepository, entryRepository, emotionRepository) as T
+            ExplorationViewModel(profileRepository, entryRepository, emotionRepository, partRepository) as T
     }
 }
 

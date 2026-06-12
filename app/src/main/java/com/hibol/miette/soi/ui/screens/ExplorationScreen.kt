@@ -7,8 +7,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,6 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -45,6 +50,11 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.hibol.miette.soi.SoiApplication
 import com.hibol.miette.soi.data.entity.EntryType
+import com.hibol.miette.soi.data.entity.GlobalStats
+import com.hibol.miette.soi.data.entity.MemoryQualityCount
+import com.hibol.miette.soi.data.entity.PartCount
+import com.hibol.miette.soi.data.entity.PeriodStats
+import com.hibol.miette.soi.data.entity.TagCount
 import com.hibol.miette.soi.ui.components.hexToHsl
 import com.hibol.miette.soi.ui.navigation.MainBottomBar
 import com.hibol.miette.soi.ui.viewmodel.ExplorationViewModel
@@ -54,6 +64,7 @@ import com.hibol.miette.soi.ui.viewmodel.Period
 import com.hibol.miette.soi.ui.viewmodel.SelectedCell
 import com.hibol.miette.soi.ui.viewmodel.TooltipUiState
 import java.time.LocalDate
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,11 +75,14 @@ fun ExplorationScreen(navController: NavController) {
         factory = ExplorationViewModel.Factory(
             app.container.profileRepository,
             app.container.entryRepository,
-            app.container.emotionRepository
+            app.container.emotionRepository,
+            app.container.partRepository
         )
     )
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
     val selectedPeriod by viewModel.selectedPeriod.collectAsState()
+    val global by viewModel.globalStats.collectAsState()
+    val period by viewModel.periodStats.collectAsState()
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Exploration") }) },
@@ -78,11 +92,29 @@ fun ExplorationScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // Bloc global — indépendant de la période
+            global?.let { GlobalStatsCard(it) }
+
+            // Sélecteur de période — régit tout ce qui suit
             PeriodSelector(selected = selectedPeriod, onSelect = viewModel::selectPeriod)
-            Spacer(modifier = Modifier.height(12.dp))
+
+            // Blocs filtrés par la période
+            period?.let { PeriodStatsSection(it) }
+
+            // Heatmap (filtrée par période + type)
+            Text(
+                "Carte des émotions",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
             ExplorationHeatmap(viewModel = viewModel)
+
+            Spacer(Modifier.height(8.dp))
         }
     }
 }
@@ -407,5 +439,219 @@ private fun colorForIntensityFloat(hsl: Triple<Float, Float, Float>, intensity: 
     val sat = (15f + t * (s - 15f)) / 100f
     val lum = (78f - t * (78f - l)) / 100f
     return Color.hsl(h, sat.coerceIn(0f, 1f), lum.coerceIn(0f, 1f))
+}
+
+// ─── Statistiques ────────────────────────────────────────────────────────────
+
+private val DOW_LABELS = arrayOf("Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim")
+
+@Composable
+private fun GlobalStatsCard(stats: GlobalStats) {
+    StatsCard("Entrées") {
+        Row(horizontalArrangement = Arrangement.spacedBy(32.dp)) {
+            StatBigNumber(stats.totalEntries.toString(), "entrées")
+            StatBigNumber("${stats.activeSinceDays}j", "d'activité")
+        }
+        if (stats.recordStreak > 1) {
+            Text(
+                "Record : ${stats.recordStreak} jours consécutifs",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PeriodStatsSection(stats: PeriodStats) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+
+        // ── Répartition + avg/sem + jour actif ───────────────────────────────
+        if (stats.byType.isNotEmpty()) {
+            StatsCard("Répartition") {
+                TypeBreakdownBar(stats.byType)
+                val avgStr = String.format(Locale.FRENCH, "%.1f", stats.avgPerWeek)
+                val dowLabel = stats.topDayOfWeek?.let { DOW_LABELS[(it - 1).coerceIn(0, 6)] }
+                Text(
+                    buildString {
+                        append("Moy. $avgStr / sem")
+                        if (dowLabel != null) append("  ·  $dowLabel le plus actif")
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        // ── Qualité souvenir (rêves) ──────────────────────────────────────────
+        if (stats.memoryQuality.isNotEmpty()) {
+            StatsCard("Rêves") {
+                MemoryQualityRow(stats.memoryQuality)
+            }
+        }
+
+        // ── Top tags ──────────────────────────────────────────────────────────
+        if (stats.topTags.isNotEmpty()) {
+            StatsCard("Tags fréquents") {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    stats.topTags.forEach { TagChip(it) }
+                }
+            }
+        }
+
+        // ── Top parties ───────────────────────────────────────────────────────
+        if (stats.topParts.isNotEmpty()) {
+            StatsCard("Parties") {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    stats.topParts.forEach { PartChip(it) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatsCard(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                title,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            content()
+        }
+    }
+}
+
+@Composable
+private fun StatBigNumber(value: String, label: String) {
+    Column {
+        Text(value, style = MaterialTheme.typography.headlineMedium)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun TypeBreakdownBar(byType: Map<EntryType, Int>) {
+    val total = byType.values.sum().toFloat()
+    if (total == 0f) return
+    val order = listOf(EntryType.DREAM, EntryType.SESSION, EntryType.LIFE_EVENT)
+    val colors = @Composable { listOf(
+        MaterialTheme.colorScheme.primary,
+        MaterialTheme.colorScheme.secondary,
+        MaterialTheme.colorScheme.tertiary
+    )}
+    val labels = mapOf(EntryType.DREAM to "Rêves", EntryType.SESSION to "Sessions", EntryType.LIFE_EVENT to "Événements")
+
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        val barColors = colors()
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(6.dp)
+                .clip(RoundedCornerShape(3.dp))
+        ) {
+            order.forEachIndexed { i, type ->
+                val count = byType[type] ?: 0
+                if (count > 0) {
+                    Box(
+                        modifier = Modifier
+                            .weight(count / total)
+                            .fillMaxHeight()
+                            .background(barColors[i])
+                    )
+                }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            order.forEachIndexed { i, type ->
+                val count = byType[type] ?: 0
+                if (count > 0) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Box(Modifier.size(6.dp).clip(CircleShape).background(barColors[i]))
+                        Text(
+                            "${labels[type]} $count",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MemoryQualityRow(memQuality: List<MemoryQualityCount>) {
+    val order = listOf("flou", "partiel", "clair")
+    val labelMap = mapOf("flou" to "Flou", "partiel" to "Partiel", "clair" to "Clair")
+    val countMap = memQuality.associate { it.quality to it.count }
+    Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+        order.forEach { q ->
+            val count = countMap[q] ?: 0
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(count.toString(), style = MaterialTheme.typography.titleLarge)
+                Text(
+                    labelMap[q] ?: q,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TagChip(tag: TagCount) {
+    Row(
+        modifier = Modifier
+            .background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(16.dp))
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("#${tag.label}", style = MaterialTheme.typography.labelMedium)
+        Text(
+            tag.count.toString(),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun PartChip(part: PartCount) {
+    Row(
+        modifier = Modifier
+            .background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(16.dp))
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(part.name, style = MaterialTheme.typography.labelMedium)
+        Text(
+            part.count.toString(),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
 }
 

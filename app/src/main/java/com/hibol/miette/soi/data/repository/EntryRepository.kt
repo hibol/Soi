@@ -41,6 +41,12 @@ class EntryRepository(private val db: SoiDatabase) {
     ): Flow<List<EmotionTrendPoint>> =
         db.entryEmotionDao().getHeatmapData(profileId, fromMillis, toMillis, entryTypes)
 
+    fun getMemoryQualityCounts(profileId: Long, fromMillis: Long, toMillis: Long): Flow<List<MemoryQualityCount>> =
+        db.dreamEntryDao().getMemoryQualityCounts(profileId, fromMillis, toMillis)
+
+    fun getTopTags(profileId: Long, fromMillis: Long, toMillis: Long, limit: Int = 5): Flow<List<TagCount>> =
+        db.entryTagDao().getTopTagsByProfile(profileId, fromMillis, toMillis, limit)
+
     fun getTopSecondaryEmotions(
         profileId: Long,
         fromMillis: Long,

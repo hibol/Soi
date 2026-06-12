@@ -6,6 +6,7 @@ import com.hibol.miette.soi.data.db.SoiDatabase
 import com.hibol.miette.soi.data.entity.Entry
 import com.hibol.miette.soi.data.entity.EntryPart
 import com.hibol.miette.soi.data.entity.Part
+import com.hibol.miette.soi.data.entity.PartCount
 import com.hibol.miette.soi.data.entity.PartTrait
 import com.hibol.miette.soi.data.entity.PartTraitLink
 import com.hibol.miette.soi.data.util.PartDetector
@@ -99,5 +100,8 @@ class PartRepository(private val db: SoiDatabase) {
 
     fun getExplicitEntriesForPart(partId: Long): Flow<List<Entry>> =
         db.entryPartDao().getExplicitEntriesForPart(partId)
+
+    fun getTopExplicitParts(profileId: Long, fromMillis: Long, toMillis: Long, limit: Int = 5): Flow<List<PartCount>> =
+        db.entryPartDao().getTopExplicitPartsByProfile(profileId, fromMillis, toMillis, limit)
 
 }
