@@ -30,25 +30,13 @@ interface EntryEmotionDao {
     @Query("""
         SELECT (e.entryDate / 86400000) AS dayEpoch,
                COALESCE(em.parentId, em.id) AS primaryEmotionId,
-               AVG(CAST(ee.intensity AS FLOAT)) AS avgIntensity
-        FROM entry_emotion ee
-        JOIN entry e ON ee.entryId = e.id
-        JOIN emotion em ON ee.emotionId = em.id
-        WHERE e.profileId = :profileId AND e.entryDate >= :fromMillis
-        GROUP BY (e.entryDate / 86400000), COALESCE(em.parentId, em.id)
-        ORDER BY dayEpoch ASC
-    """)
-    fun getEmotionTrend(profileId: Long, fromMillis: Long): Flow<List<EmotionTrendPoint>>
-
-    @Query("""
-        SELECT (e.entryDate / 86400000) AS dayEpoch,
-               COALESCE(em.parentId, em.id) AS primaryEmotionId,
-               CAST(MAX(ee.intensity) AS FLOAT) AS avgIntensity
+               CAST(MAX(ee.intensity) AS FLOAT) AS intensity
         FROM entry_emotion ee
         JOIN entry e ON ee.entryId = e.id
         JOIN emotion em ON ee.emotionId = em.id
         WHERE e.profileId = :profileId
           AND e.entryDate >= :fromMillis
+          AND e.entryDate < :toMillis
           AND e.entryType IN (:entryTypes)
         GROUP BY (e.entryDate / 86400000), COALESCE(em.parentId, em.id)
         ORDER BY dayEpoch ASC
@@ -56,6 +44,7 @@ interface EntryEmotionDao {
     fun getHeatmapData(
         profileId: Long,
         fromMillis: Long,
+        toMillis: Long,
         entryTypes: List<String>
     ): Flow<List<EmotionTrendPoint>>
 

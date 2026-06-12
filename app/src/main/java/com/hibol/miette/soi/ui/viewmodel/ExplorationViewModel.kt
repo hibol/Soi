@@ -113,8 +113,9 @@ class ExplorationViewModel(
         HeatmapInputs(period, types, profile?.id, emotions)
     }.flatMapLatest { inputs ->
         if (inputs.profileId == null) return@flatMapLatest flowOf(HeatmapUiState.Loading)
-        val fromMillis = System.currentTimeMillis() - inputs.period.days.toLong() * 86_400_000L
-        entryRepository.getHeatmapData(inputs.profileId, fromMillis, inputs.types.map { it.value })
+        val now = System.currentTimeMillis()
+        val fromMillis = now - inputs.period.days.toLong() * 86_400_000L
+        entryRepository.getHeatmapData(inputs.profileId, fromMillis, now, inputs.types.map { it.value })
             .map { points ->
                 buildHeatmapState(points, inputs.allEmotions, inputs.period, fromMillis, inputs.profileId, inputs.types)
             }
@@ -159,7 +160,7 @@ class ExplorationViewModel(
             Period.WEEK, Period.MONTH -> {
                 points.associate { pt ->
                     val col = (pt.dayEpoch - startEpochDay).toInt().coerceIn(0, period.days - 1)
-                    Pair(col, pt.primaryEmotionId) to pt.avgIntensity
+                    Pair(col, pt.primaryEmotionId) to pt.intensity
                 }
             }
             Period.THREE_MONTHS -> buildMap {
@@ -168,7 +169,7 @@ class ExplorationViewModel(
                     .forEach { (weekIdx, weekPts) ->
                         weekPts.groupBy { it.primaryEmotionId }
                             .forEach { (emotionId, ePts) ->
-                                put(Pair(weekIdx.coerceIn(0, 12), emotionId), ePts.maxOf { it.avgIntensity })
+                                put(Pair(weekIdx.coerceIn(0, 12), emotionId), ePts.maxOf { it.intensity })
                             }
                     }
             }
@@ -213,7 +214,10 @@ class ExplorationViewModel(
             Period.THREE_MONTHS -> {
                 val start = LocalDate.ofEpochDay(startEpochDay + col * 7L)
                 val end = start.plusDays(6)
-                "${start.dayOfMonth}–${end.dayOfMonth} ${monthFr(start.monthValue)}"
+                val monthPart = if (start.monthValue != end.monthValue)
+                    "${monthFr(start.monthValue)}–${monthFr(end.monthValue)}"
+                else monthFr(start.monthValue)
+                "${start.dayOfMonth}–${end.dayOfMonth} $monthPart"
             }
         }
 
@@ -228,5 +232,5 @@ class ExplorationViewModel(
     }
 }
 
-private fun monthFr(month: Int): String =
+internal fun monthFr(month: Int): String =
     arrayOf("jan","fév","mars","avr","mai","juin","juil","août","sep","oct","nov","déc")[month - 1]

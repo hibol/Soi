@@ -33,15 +33,13 @@ class EntryRepository(private val db: SoiDatabase) {
     fun getAllEmotionsForProfile(profileId: Long): Flow<List<EntryEmotion>> =
         db.entryEmotionDao().getAllForProfile(profileId)
 
-    fun getEmotionTrend(profileId: Long, fromMillis: Long): Flow<List<EmotionTrendPoint>> =
-        db.entryEmotionDao().getEmotionTrend(profileId, fromMillis)
-
     fun getHeatmapData(
         profileId: Long,
         fromMillis: Long,
+        toMillis: Long,
         entryTypes: List<String>
     ): Flow<List<EmotionTrendPoint>> =
-        db.entryEmotionDao().getHeatmapData(profileId, fromMillis, entryTypes)
+        db.entryEmotionDao().getHeatmapData(profileId, fromMillis, toMillis, entryTypes)
 
     fun getTopSecondaryEmotions(
         profileId: Long,
@@ -49,7 +47,7 @@ class EntryRepository(private val db: SoiDatabase) {
         toMillis: Long,
         entryTypes: List<String>,
         primaryEmotionId: Long
-    ): Flow<List<com.hibol.miette.soi.data.entity.TopSecondaryEmotion>> =
+    ): Flow<List<TopSecondaryEmotion>> =
         db.entryEmotionDao().getTopSecondaryEmotions(profileId, fromMillis, toMillis, entryTypes, primaryEmotionId)
 
     // ── Création ─────────────────────────────────────────────────────────────

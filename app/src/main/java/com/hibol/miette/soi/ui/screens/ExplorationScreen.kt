@@ -48,6 +48,7 @@ import com.hibol.miette.soi.data.entity.EntryType
 import com.hibol.miette.soi.ui.components.hexToHsl
 import com.hibol.miette.soi.ui.navigation.MainBottomBar
 import com.hibol.miette.soi.ui.viewmodel.ExplorationViewModel
+import com.hibol.miette.soi.ui.viewmodel.monthFr
 import com.hibol.miette.soi.ui.viewmodel.HeatmapUiState
 import com.hibol.miette.soi.ui.viewmodel.Period
 import com.hibol.miette.soi.ui.viewmodel.SelectedCell
@@ -408,5 +409,3 @@ private fun colorForIntensityFloat(hsl: Triple<Float, Float, Float>, intensity: 
     return Color.hsl(h, sat.coerceIn(0f, 1f), lum.coerceIn(0f, 1f))
 }
 
-private fun monthFr(month: Int): String =
-    arrayOf("jan", "fév", "mars", "avr", "mai", "juin", "juil", "août", "sep", "oct", "nov", "déc")[month - 1]
