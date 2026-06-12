@@ -11,6 +11,7 @@ import androidx.navigation.navArgument
 import com.hibol.miette.soi.SoiApplication
 import com.hibol.miette.soi.data.entity.EntryType
 import com.hibol.miette.soi.ui.screens.EntryDetailScreen
+import com.hibol.miette.soi.ui.screens.ExplorationScreen
 import com.hibol.miette.soi.ui.screens.HomeScreen
 import com.hibol.miette.soi.ui.screens.NewEntryScreen
 import com.hibol.miette.soi.ui.screens.PartDetailScreen
@@ -33,6 +34,7 @@ object Routes {
     const val PART_READ = "part_read/{partId}"
     const val PART_DETAIL = "part/{partId}?role={role}"
     const val SETTINGS = "settings"
+    const val EXPLORATION = "exploration"
 
     fun partRead(partId: Long) = "part_read/$partId"
 
@@ -128,6 +130,9 @@ fun NavGraph(
         }
         composable(Routes.SETTINGS) {
             SettingsScreen(navController)
+        }
+        composable(Routes.EXPLORATION) {
+            ExplorationScreen(navController)
         }
     }
 }

@@ -23,7 +23,7 @@ import com.hibol.miette.soi.data.entity.*
         PartTraitLink::class,
         EntryPart::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = true
 )
 abstract class SoiDatabase : RoomDatabase() {
@@ -53,7 +53,7 @@ abstract class SoiDatabase : RoomDatabase() {
                     SoiDatabase::class.java,
                     "soi_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                     .build().also { INSTANCE = it }
             }
         }

@@ -96,6 +96,43 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
     }
 }
 
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Sur certains appareils, tag a encore DEFAULT 'manual' sur source
+        // et n'a pas d'index unique — mismatch avec l'entité Tag actuelle.
+        // On recrée la table proprement en préservant toutes les données.
+        // Les noms d'index sont globaux dans SQLite : on supprime l'existant
+        // avant de le recréer sur tag_new, pour éviter le conflit.
+        db.execSQL("DROP INDEX IF EXISTS `index_tag_label`")
+        db.execSQL("""
+            CREATE TABLE `tag_new` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `label` TEXT NOT NULL,
+                `source` TEXT NOT NULL
+            )
+        """.trimIndent())
+        db.execSQL("CREATE UNIQUE INDEX `index_tag_label` ON `tag_new`(`label`)")
+        // MIN(id) par label pour dédupliquer au cas où (sans casser les refs entry_tag)
+        db.execSQL("""
+            INSERT INTO `tag_new` (`id`, `label`, `source`)
+            SELECT MIN(`id`), `label`, MIN(`source`)
+            FROM `tag`
+            GROUP BY LOWER(`label`)
+        """.trimIndent())
+        db.execSQL("""
+            UPDATE `entry_tag`
+            SET `tagId` = (
+                SELECT MIN(`id`) FROM `tag`
+                WHERE LOWER(`label`) = LOWER(
+                    (SELECT `label` FROM `tag` WHERE `id` = `entry_tag`.`tagId`)
+                )
+            )
+        """.trimIndent())
+        db.execSQL("DROP TABLE `tag`")
+        db.execSQL("ALTER TABLE `tag_new` RENAME TO `tag`")
+    }
+}
+
 val MIGRATION_4_5 = object : Migration(4, 5) {
     override fun migrate(db: SupportSQLiteDatabase) {
         // Recréer part_trait avec une seule colonne label (labelIncl devient label)
