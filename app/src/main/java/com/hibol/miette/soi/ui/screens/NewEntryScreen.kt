@@ -19,6 +19,7 @@ import com.hibol.miette.soi.SoiApplication
 import com.hibol.miette.soi.data.entity.EntryType
 import com.hibol.miette.soi.ui.components.EmotionPicker
 import com.hibol.miette.soi.ui.components.EmotionSelection
+import com.hibol.miette.soi.ui.components.OrientationSlider
 import com.hibol.miette.soi.ui.components.TagPicker
 import com.hibol.miette.soi.ui.viewmodel.NewEntryViewModel
 import java.time.Instant
@@ -61,6 +62,7 @@ fun NewEntryScreen(
     var selectedTags by remember { mutableStateOf<List<String>>(emptyList()) }
     var entryDate by remember { mutableStateOf(initialDate ?: System.currentTimeMillis()) }
     var isBlurred by remember { mutableStateOf(false) }
+    var orientation by remember { mutableStateOf<Float?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
 
@@ -85,6 +87,7 @@ fun NewEntryScreen(
             selectedTags = viewModel.initialTags.value
             viewModel.initialDate.value?.let { entryDate = it }
             isBlurred = viewModel.initialIsBlurred.value
+            orientation = viewModel.initialOrientation.value
         }
     }
 
@@ -172,7 +175,8 @@ fun NewEntryScreen(
                                     entryDate = entryDate,
                                     emotions = selectedEmotions,
                                     tags = selectedTags,
-                                    isBlurred = isBlurred
+                                    isBlurred = isBlurred,
+                                    orientation = orientation
                                 )
                                 EntryType.SESSION -> viewModel.saveSession(
                                     entryId = entryId,
@@ -180,7 +184,8 @@ fun NewEntryScreen(
                                     entryDate = entryDate,
                                     emotions = selectedEmotions,
                                     tags = selectedTags,
-                                    isBlurred = isBlurred
+                                    isBlurred = isBlurred,
+                                    orientation = orientation
                                 )
                                 EntryType.LIFE_EVENT -> viewModel.saveEvent(
                                     entryId = entryId,
@@ -188,7 +193,8 @@ fun NewEntryScreen(
                                     entryDate = entryDate,
                                     emotions = selectedEmotions,
                                     tags = selectedTags,
-                                    isBlurred = isBlurred
+                                    isBlurred = isBlurred,
+                                    orientation = orientation
                                 )
                             }
                         }
@@ -283,6 +289,13 @@ fun NewEntryScreen(
                 secondaryEmotions = secondaryEmotions,
                 selected = selectedEmotions,
                 onSelectionChanged = { selectedEmotions = it }
+            )
+
+            // Orientation cognitive
+            OrientationSlider(
+                value = orientation,
+                onValueChange = { orientation = it },
+                modifier = Modifier.fillMaxWidth()
             )
 
             // Tags

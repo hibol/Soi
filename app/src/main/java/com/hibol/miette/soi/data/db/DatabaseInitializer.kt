@@ -7,7 +7,7 @@ import com.hibol.miette.soi.data.entity.PartTrait
 object DatabaseInitializer {
 
     // Incrémenter à chaque modification du catalogue correspondant
-    private const val EMOTION_CATALOG_VERSION = 3
+    private const val EMOTION_CATALOG_VERSION = 4
     private const val TRAIT_CATALOG_VERSION = 2  // v2 : passage à colonne label unique
     private const val PREFS_NAME = "soi_prefs"
     private const val PREFS_KEY_EMOTION_VERSION = "emotion_catalog_version"
@@ -207,10 +207,5 @@ object DatabaseInitializer {
             "Détestation", "Dédain", "Rejet",
             "Dégoût de soi"
         )),
-        PrimaryEntry("Orientation", "#577590", 0.0, listOf(
-            "Clarté", "Compréhension", "Lucidité",
-            "Confusion", "Doute", "Indécision",
-            "Perte de repères"
-        ))
     )
 }

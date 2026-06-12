@@ -133,6 +133,58 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
     }
 }
 
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // 1. Ajouter le champ orientation à entry
+        db.execSQL("ALTER TABLE `entry` ADD COLUMN `orientation` REAL")
+
+        // 2. Calculer l'orientation depuis les entry_emotion liées au groupe "Orientation".
+        //    Positif : Clarté, Compréhension, Lucidité → +1.0
+        //    Négatif : Confusion, Doute, Indécision, Perte de repères → -1.0
+        //    Formule : somme_pondérée / total_intensité  → toujours dans [-1, +1]
+        db.execSQL("""
+            UPDATE `entry` SET `orientation` = (
+                SELECT CAST(
+                    SUM(ee.intensity * CASE
+                        WHEN em.label IN ('Clarté', 'Compréhension', 'Lucidité') THEN 1.0
+                        ELSE -1.0
+                    END)
+                AS REAL) / SUM(ee.intensity)
+                FROM entry_emotion ee
+                JOIN emotion em ON ee.emotionId = em.id
+                WHERE ee.entryId = entry.id
+                  AND em.label IN ('Clarté', 'Compréhension', 'Lucidité',
+                                   'Confusion', 'Doute', 'Indécision', 'Perte de repères')
+            )
+            WHERE EXISTS (
+                SELECT 1 FROM entry_emotion ee
+                JOIN emotion em ON ee.emotionId = em.id
+                WHERE ee.entryId = entry.id
+                  AND em.label IN ('Clarté', 'Compréhension', 'Lucidité',
+                                   'Confusion', 'Doute', 'Indécision', 'Perte de repères')
+            )
+        """.trimIndent())
+
+        // 3. Supprimer les entry_emotion liées à toutes les émotions Orientation
+        db.execSQL("""
+            DELETE FROM `entry_emotion`
+            WHERE emotionId IN (
+                SELECT id FROM `emotion`
+                WHERE label IN ('Orientation', 'Clarté', 'Compréhension', 'Lucidité',
+                                'Confusion', 'Doute', 'Indécision', 'Perte de repères')
+            )
+        """.trimIndent())
+
+        // 4. Supprimer les secondaires avant la primaire (contrainte FK parentId)
+        db.execSQL("""
+            DELETE FROM `emotion`
+            WHERE label IN ('Clarté', 'Compréhension', 'Lucidité',
+                            'Confusion', 'Doute', 'Indécision', 'Perte de repères')
+        """.trimIndent())
+        db.execSQL("DELETE FROM `emotion` WHERE label = 'Orientation' AND level = 1")
+    }
+}
+
 val MIGRATION_4_5 = object : Migration(4, 5) {
     override fun migrate(db: SupportSQLiteDatabase) {
         // Recréer part_trait avec une seule colonne label (labelIncl devient label)

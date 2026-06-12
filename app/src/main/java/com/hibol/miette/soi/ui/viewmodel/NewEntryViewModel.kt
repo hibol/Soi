@@ -52,6 +52,9 @@ class NewEntryViewModel(
     private val _initialIsBlurred = MutableStateFlow(false)
     val initialIsBlurred: StateFlow<Boolean> = _initialIsBlurred
 
+    private val _initialOrientation = MutableStateFlow<Float?>(null)
+    val initialOrientation: StateFlow<Float?> = _initialOrientation
+
     private val _isLoaded = MutableStateFlow(false)
     val isLoaded: StateFlow<Boolean> = _isLoaded
 
@@ -89,6 +92,7 @@ class NewEntryViewModel(
                 .map { it.label }
 
             _initialIsBlurred.value = entry.isBlurred != 0
+            _initialOrientation.value = entry.orientation
 
             // Qualité du souvenir si rêve
             entryRepository.getDreamDetail(entryId).first()?.let {
@@ -106,7 +110,8 @@ class NewEntryViewModel(
         entryDate: Long,
         emotions: List<EmotionSelection>,
         tags: List<String>,
-        isBlurred: Boolean = false
+        isBlurred: Boolean = false,
+        orientation: Float? = null
     ) = saveEntry(text) { profileId ->
         entryId?.let { id ->
             entryRepository.updateDreamEntry(
@@ -116,7 +121,8 @@ class NewEntryViewModel(
                 entryDate = entryDate,
                 emotionIds = emotions.map { Pair(it.emotion.id, it.intensity) },
                 tagLabels = tags,
-                isBlurred = isBlurred
+                isBlurred = isBlurred,
+                orientation = orientation
             )
             id
         } ?: entryRepository.createDreamEntry(
@@ -126,7 +132,8 @@ class NewEntryViewModel(
             memoryQuality = memoryQuality,
             emotionIds = emotions.map { Pair(it.emotion.id, it.intensity) },
             tagLabels = tags,
-            isBlurred = isBlurred
+            isBlurred = isBlurred,
+            orientation = orientation
         )
     }
 
@@ -136,7 +143,8 @@ class NewEntryViewModel(
         entryDate: Long,
         emotions: List<EmotionSelection>,
         tags: List<String>,
-        isBlurred: Boolean = false
+        isBlurred: Boolean = false,
+        orientation: Float? = null
     ) = saveEntry(text) { profileId ->
         entryId?.let { id ->
             entryRepository.updateSessionEntry(
@@ -145,7 +153,8 @@ class NewEntryViewModel(
                 entryDate = entryDate,
                 emotionIds = emotions.map { Pair(it.emotion.id, it.intensity) },
                 tagLabels = tags,
-                isBlurred = isBlurred
+                isBlurred = isBlurred,
+                orientation = orientation
             )
             id
         } ?: entryRepository.createSessionEntry(
@@ -154,7 +163,8 @@ class NewEntryViewModel(
             text = text,
             emotionIds = emotions.map { Pair(it.emotion.id, it.intensity) },
             tagLabels = tags,
-            isBlurred = isBlurred
+            isBlurred = isBlurred,
+            orientation = orientation
         )
     }
 
@@ -164,7 +174,8 @@ class NewEntryViewModel(
         entryDate: Long,
         emotions: List<EmotionSelection>,
         tags: List<String>,
-        isBlurred: Boolean = false
+        isBlurred: Boolean = false,
+        orientation: Float? = null
     ) = saveEntry(text) { profileId ->
         entryId?.let { id ->
             entryRepository.updateEventEntry(
@@ -173,7 +184,8 @@ class NewEntryViewModel(
                 entryDate = entryDate,
                 emotionIds = emotions.map { Pair(it.emotion.id, it.intensity) },
                 tagLabels = tags,
-                isBlurred = isBlurred
+                isBlurred = isBlurred,
+                orientation = orientation
             )
             id
         } ?: entryRepository.createEventEntry(
@@ -182,7 +194,8 @@ class NewEntryViewModel(
             text = text,
             emotionIds = emotions.map { Pair(it.emotion.id, it.intensity) },
             tagLabels = tags,
-            isBlurred = isBlurred
+            isBlurred = isBlurred,
+            orientation = orientation
         )
     }
 

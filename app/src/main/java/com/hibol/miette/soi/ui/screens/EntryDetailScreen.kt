@@ -24,6 +24,7 @@ import androidx.navigation.NavController
 import com.hibol.miette.soi.SoiApplication
 import com.hibol.miette.soi.data.entity.EntryType
 import com.hibol.miette.soi.ui.components.EntryPartsSection
+import com.hibol.miette.soi.ui.components.OrientationBar
 import com.hibol.miette.soi.ui.navigation.Routes
 import com.hibol.miette.soi.ui.theme.colorFamilyForType
 import com.hibol.miette.soi.ui.theme.extendedColorScheme
@@ -241,6 +242,14 @@ fun EntryDetailScreen(
                             }
                         }
                     }
+                }
+
+                // Orientation cognitive
+                e.orientation?.let { orientation ->
+                    OrientationBar(
+                        orientation = orientation,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
 
                 // Tags

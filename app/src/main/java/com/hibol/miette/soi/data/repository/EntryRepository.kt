@@ -59,9 +59,10 @@ class EntryRepository(private val db: SoiDatabase) {
         memoryQuality: String,
         emotionIds: List<Pair<Long, Int>>,
         tagLabels: List<String>,
-        isBlurred: Boolean = false
+        isBlurred: Boolean = false,
+        orientation: Float? = null
     ): Long {
-        val entryId = insertBaseEntry(profileId, "dream", entryDate, text, isBlurred)
+        val entryId = insertBaseEntry(profileId, "dream", entryDate, text, isBlurred, orientation)
         db.dreamEntryDao().insert(DreamEntry(id = entryId, memoryQuality = memoryQuality))
         saveEmotionsAndTags(entryId, emotionIds, tagLabels)
         return entryId
@@ -73,9 +74,10 @@ class EntryRepository(private val db: SoiDatabase) {
         text: String?,
         emotionIds: List<Pair<Long, Int>>,
         tagLabels: List<String>,
-        isBlurred: Boolean = false
+        isBlurred: Boolean = false,
+        orientation: Float? = null
     ): Long {
-        val entryId = insertBaseEntry(profileId, "session", entryDate, text, isBlurred)
+        val entryId = insertBaseEntry(profileId, "session", entryDate, text, isBlurred, orientation)
         db.sessionEntryDao().insert(SessionEntry(id = entryId))
         saveEmotionsAndTags(entryId, emotionIds, tagLabels)
         return entryId
@@ -87,9 +89,10 @@ class EntryRepository(private val db: SoiDatabase) {
         text: String?,
         emotionIds: List<Pair<Long, Int>>,
         tagLabels: List<String>,
-        isBlurred: Boolean = false
+        isBlurred: Boolean = false,
+        orientation: Float? = null
     ): Long {
-        val entryId = insertBaseEntry(profileId, "life_event", entryDate, text, isBlurred)
+        val entryId = insertBaseEntry(profileId, "life_event", entryDate, text, isBlurred, orientation)
         db.eventEntryDao().insert(EventEntry(id = entryId))
         saveEmotionsAndTags(entryId, emotionIds, tagLabels)
         return entryId
@@ -104,9 +107,10 @@ class EntryRepository(private val db: SoiDatabase) {
         entryDate: Long,
         emotionIds: List<Pair<Long, Int>>,
         tagLabels: List<String>,
-        isBlurred: Boolean = false
+        isBlurred: Boolean = false,
+        orientation: Float? = null
     ) {
-        if (!updateBaseEntry(entryId, text, entryDate, isBlurred)) return
+        if (!updateBaseEntry(entryId, text, entryDate, isBlurred, orientation)) return
         db.dreamEntryDao().update(DreamEntry(id = entryId, memoryQuality = memoryQuality))
         replaceEmotionsAndTags(entryId, emotionIds, tagLabels)
     }
@@ -117,9 +121,10 @@ class EntryRepository(private val db: SoiDatabase) {
         entryDate: Long,
         emotionIds: List<Pair<Long, Int>>,
         tagLabels: List<String>,
-        isBlurred: Boolean = false
+        isBlurred: Boolean = false,
+        orientation: Float? = null
     ) {
-        if (!updateBaseEntry(entryId, text, entryDate, isBlurred)) return
+        if (!updateBaseEntry(entryId, text, entryDate, isBlurred, orientation)) return
         replaceEmotionsAndTags(entryId, emotionIds, tagLabels)
     }
 
@@ -129,9 +134,10 @@ class EntryRepository(private val db: SoiDatabase) {
         entryDate: Long,
         emotionIds: List<Pair<Long, Int>>,
         tagLabels: List<String>,
-        isBlurred: Boolean = false
+        isBlurred: Boolean = false,
+        orientation: Float? = null
     ) {
-        if (!updateBaseEntry(entryId, text, entryDate, isBlurred)) return
+        if (!updateBaseEntry(entryId, text, entryDate, isBlurred, orientation)) return
         replaceEmotionsAndTags(entryId, emotionIds, tagLabels)
     }
 
@@ -147,14 +153,16 @@ class EntryRepository(private val db: SoiDatabase) {
         entryType: String,
         entryDate: Long,
         text: String?,
-        isBlurred: Boolean
+        isBlurred: Boolean,
+        orientation: Float? = null
     ): Long = db.entryDao().insert(
         Entry(
             profileId = profileId,
             entryType = entryType,
             entryDate = entryDate,
             text = text,
-            isBlurred = if (isBlurred) 1 else 0
+            isBlurred = if (isBlurred) 1 else 0,
+            orientation = orientation
         )
     )
 
@@ -163,7 +171,8 @@ class EntryRepository(private val db: SoiDatabase) {
         entryId: Long,
         text: String?,
         entryDate: Long,
-        isBlurred: Boolean
+        isBlurred: Boolean,
+        orientation: Float? = null
     ): Boolean {
         val existing = db.entryDao().getById(entryId).first() ?: return false
         db.entryDao().update(
@@ -171,6 +180,7 @@ class EntryRepository(private val db: SoiDatabase) {
                 text = text,
                 entryDate = entryDate,
                 isBlurred = if (isBlurred) 1 else 0,
+                orientation = orientation,
                 updatedAt = System.currentTimeMillis()
             )
         )

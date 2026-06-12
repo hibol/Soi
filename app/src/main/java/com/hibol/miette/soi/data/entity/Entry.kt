@@ -27,6 +27,7 @@ data class Entry(
     val text: String? = null,
     val extraData: String? = null,  // JSON libre, V2
     val isBlurred: Int = 0,
+    val orientation: Float? = null, // axe cognitif -1.0 (confusion) → +1.0 (clarté), null = non renseigné
     val updatedAt: Long = System.currentTimeMillis()
 ) {
     val type: EntryType
