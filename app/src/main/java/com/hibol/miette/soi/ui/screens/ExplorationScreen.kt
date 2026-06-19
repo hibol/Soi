@@ -35,16 +35,26 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -57,6 +67,8 @@ import com.hibol.miette.soi.data.entity.PeriodStats
 import com.hibol.miette.soi.data.entity.TagCount
 import com.hibol.miette.soi.ui.components.hexToHsl
 import com.hibol.miette.soi.ui.navigation.MainBottomBar
+import com.hibol.miette.soi.ui.theme.colorFamilyForType
+import com.hibol.miette.soi.ui.theme.extendedColorScheme
 import com.hibol.miette.soi.ui.viewmodel.ExplorationViewModel
 import com.hibol.miette.soi.ui.viewmodel.monthFr
 import com.hibol.miette.soi.ui.viewmodel.HeatmapUiState
@@ -102,8 +114,8 @@ fun ExplorationScreen(navController: NavController) {
             // Sélecteur de période — régit tout ce qui suit
             PeriodSelector(selected = selectedPeriod, onSelect = viewModel::selectPeriod)
 
-            // Blocs filtrés par la période
-            period?.let { PeriodStatsSection(it) }
+            // Répartition (avant la heatmap)
+            period?.let { PeriodStatsSectionTop(it) }
 
             // Heatmap (filtrée par période + type)
             Text(
@@ -113,6 +125,9 @@ fun ExplorationScreen(navController: NavController) {
                 color = MaterialTheme.colorScheme.onSurface
             )
             ExplorationHeatmap(viewModel = viewModel)
+
+            // Rêves, tags, parties (après la heatmap)
+            period?.let { PeriodStatsSectionBottom(it) }
 
             Spacer(Modifier.height(8.dp))
         }
@@ -127,6 +142,7 @@ fun ExplorationHeatmap(viewModel: ExplorationViewModel) {
     val selectedTypes by viewModel.selectedEntryTypes.collectAsState()
     val tooltipState by viewModel.tooltipUiState.collectAsState()
     val selectedCell by viewModel.selectedCell.collectAsState()
+    var tooltipAnchor by remember { mutableStateOf(IntOffset.Zero) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         EntryTypeChips(selected = selectedTypes, onToggle = viewModel::toggleEntryType)
@@ -154,12 +170,33 @@ fun ExplorationHeatmap(viewModel: ExplorationViewModel) {
                 HeatmapGrid(
                     state = state,
                     selectedCell = selectedCell,
-                    onCellPress = viewModel::pressCell,
+                    onCellPress = { col, emotionId, offset ->
+                        tooltipAnchor = offset
+                        viewModel.pressCell(col, emotionId)
+                    },
                     onCellRelease = viewModel::releaseCell
                 )
                 val tooltip = tooltipState
                 if (tooltip is TooltipUiState.Visible) {
-                    TooltipCard(tooltip)
+                    val anchor = tooltipAnchor
+                    Popup(
+                        popupPositionProvider = remember(anchor) {
+                            object : PopupPositionProvider {
+                                override fun calculatePosition(
+                                    anchorBounds: IntRect,
+                                    windowSize: IntSize,
+                                    layoutDirection: LayoutDirection,
+                                    popupContentSize: IntSize
+                                ): IntOffset {
+                                    val y = (anchor.y + 8)
+                                        .coerceAtMost(windowSize.height - popupContentSize.height - 16)
+                                    return IntOffset(x = 0, y = y)
+                                }
+                            }
+                        }
+                    ) {
+                        TooltipCard(tooltip)
+                    }
                 }
             }
         }
@@ -219,7 +256,7 @@ private fun PeriodSelector(selected: Period, onSelect: (Period) -> Unit) {
 private fun HeatmapGrid(
     state: HeatmapUiState.Ready,
     selectedCell: SelectedCell?,
-    onCellPress: (col: Int, emotionId: Long) -> Unit,
+    onCellPress: (col: Int, emotionId: Long, offset: IntOffset) -> Unit,
     onCellRelease: () -> Unit
 ) {
     val labelColWidth = 68.dp
@@ -298,7 +335,7 @@ private fun HeatmapGrid(
                                 cellWidth = cellWidth,
                                 cellHeight = cellHeight,
                                 isSelected = isSelected,
-                                onPress = onCellPress,
+                                onPress = { c, e, offset -> onCellPress(c, e, offset) },
                                 onRelease = onCellRelease
                             )
                         }
@@ -318,7 +355,7 @@ private fun HeatmapCell(
     cellWidth: Dp,
     cellHeight: Dp,
     isSelected: Boolean,
-    onPress: (col: Int, emotionId: Long) -> Unit,
+    onPress: (col: Int, emotionId: Long, offset: IntOffset) -> Unit,
     onRelease: () -> Unit
 ) {
     val emptyColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f)
@@ -328,6 +365,7 @@ private fun HeatmapCell(
     val baseColor = computed ?: emptyColor
     val displayColor = if (isSelected) baseColor.copy(alpha = (baseColor.alpha * 0.55f).coerceAtLeast(0.12f))
                        else baseColor
+    var cellBottom by remember { mutableStateOf(IntOffset.Zero) }
     Box(
         modifier = Modifier
             .width(cellWidth)
@@ -335,10 +373,14 @@ private fun HeatmapCell(
             .padding(1.dp)
             .clip(RoundedCornerShape(3.dp))
             .background(displayColor)
+            .onGloballyPositioned { coords ->
+                val tl = coords.localToWindow(Offset.Zero)
+                cellBottom = IntOffset(tl.x.toInt(), (tl.y + coords.size.height).toInt())
+            }
             .pointerInput(col, emotionId) {
                 detectTapGestures(
                     onPress = {
-                        onPress(col, emotionId)
+                        onPress(col, emotionId, cellBottom)
                         try { awaitRelease() } finally { onRelease() }
                     }
                 )
@@ -353,8 +395,9 @@ private fun TooltipCard(state: TooltipUiState.Visible) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 8.dp),
+            .padding(horizontal = 16.dp),
         shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
@@ -443,7 +486,7 @@ private fun colorForIntensityFloat(hsl: Triple<Float, Float, Float>, intensity: 
 
 // ─── Statistiques ────────────────────────────────────────────────────────────
 
-private val DOW_LABELS = arrayOf("Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim")
+private val DOW_LABELS = arrayOf("Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche")
 
 @Composable
 private fun GlobalStatsCard(stats: GlobalStats) {
@@ -462,27 +505,29 @@ private fun GlobalStatsCard(stats: GlobalStats) {
     }
 }
 
+@Composable
+private fun PeriodStatsSectionTop(stats: PeriodStats) {
+    if (stats.byType.isNotEmpty()) {
+        StatsCard("Répartition") {
+            TypeBreakdownBar(stats.byType)
+            val avgStr = String.format(Locale.FRENCH, "%.1f", stats.avgPerWeek)
+            val dowLabel = stats.topDayOfWeek?.let { DOW_LABELS[(it - 1).coerceIn(0, 6)] }
+            Text(
+                buildString {
+                    append("Moy. $avgStr / sem")
+                    if (dowLabel != null) append("  ·  $dowLabel le plus actif")
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun PeriodStatsSection(stats: PeriodStats) {
+private fun PeriodStatsSectionBottom(stats: PeriodStats) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-
-        // ── Répartition + avg/sem + jour actif ───────────────────────────────
-        if (stats.byType.isNotEmpty()) {
-            StatsCard("Répartition") {
-                TypeBreakdownBar(stats.byType)
-                val avgStr = String.format(Locale.FRENCH, "%.1f", stats.avgPerWeek)
-                val dowLabel = stats.topDayOfWeek?.let { DOW_LABELS[(it - 1).coerceIn(0, 6)] }
-                Text(
-                    buildString {
-                        append("Moy. $avgStr / sem")
-                        if (dowLabel != null) append("  ·  $dowLabel le plus actif")
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
 
         // ── Qualité souvenir (rêves) ──────────────────────────────────────────
         if (stats.memoryQuality.isNotEmpty()) {
@@ -551,42 +596,37 @@ private fun TypeBreakdownBar(byType: Map<EntryType, Int>) {
     val total = byType.values.sum().toFloat()
     if (total == 0f) return
     val order = listOf(EntryType.DREAM, EntryType.SESSION, EntryType.LIFE_EVENT)
-    val colors = @Composable { listOf(
-        MaterialTheme.colorScheme.primary,
-        MaterialTheme.colorScheme.secondary,
-        MaterialTheme.colorScheme.tertiary
-    )}
+    val extended = extendedColorScheme()
     val labels = mapOf(EntryType.DREAM to "Rêves", EntryType.SESSION to "Sessions", EntryType.LIFE_EVENT to "Événements")
 
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        val barColors = colors()
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(6.dp)
                 .clip(RoundedCornerShape(3.dp))
         ) {
-            order.forEachIndexed { i, type ->
+            order.forEach { type ->
                 val count = byType[type] ?: 0
                 if (count > 0) {
                     Box(
                         modifier = Modifier
                             .weight(count / total)
                             .fillMaxHeight()
-                            .background(barColors[i])
+                            .background(extended.colorFamilyForType(type).color)
                     )
                 }
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            order.forEachIndexed { i, type ->
+            order.forEach { type ->
                 val count = byType[type] ?: 0
                 if (count > 0) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Box(Modifier.size(6.dp).clip(CircleShape).background(barColors[i]))
+                        Box(Modifier.size(6.dp).clip(CircleShape).background(extended.colorFamilyForType(type).color))
                         Text(
                             "${labels[type]} $count",
                             style = MaterialTheme.typography.labelSmall,

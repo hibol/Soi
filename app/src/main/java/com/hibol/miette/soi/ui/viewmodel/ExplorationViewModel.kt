@@ -222,12 +222,14 @@ class ExplorationViewModel(
             heatmap.profileId, fromMillis, toMillis,
             heatmap.entryTypes.map { it.value }, cell.primaryEmotionId
         ).map { secondaries ->
-            val primaryLabel = heatmap.primaryEmotions.find { it.id == cell.primaryEmotionId }?.label ?: ""
+            val primary = heatmap.primaryEmotions.find { it.id == cell.primaryEmotionId }
+            val primaryLabel = primary?.label ?: ""
+            val primaryColor = primary?.color ?: "#888888"
             if (secondaries.isEmpty()) TooltipUiState.Hidden
             else TooltipUiState.Visible(
                 primaryLabel = primaryLabel,
                 colLabel = buildColLabel(cell.col, heatmap.startEpochDay, heatmap.period),
-                emotions = secondaries.map { e -> TooltipEmotion(e.label, e.color, e.maxIntensity) }
+                emotions = secondaries.map { e -> TooltipEmotion(e.label, primaryColor, e.maxIntensity) }
             )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TooltipUiState.Hidden)
