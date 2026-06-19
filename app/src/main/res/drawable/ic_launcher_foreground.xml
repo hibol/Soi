@@ -1,48 +1,148 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Cuboctaèdre en projection isométrique — arêtes avant uniquement.
-    12 arêtes réparties en 4 quadrants, chacun avec sa couleur pastel.
+    Cuboctaèdre posé sur une pointe — 24 arêtes.
+    Spokes : couleur solide depuis chaque pointe de diamant.
+    Carré ext/int : gradient entre les couleurs des faces adjacentes à chaque coin.
 
-    Sommets :
-        coins      : (75.3,75.3) (32.7,75.3) (75.3,32.7) (32.7,32.7)
-        extrémités : (82.4,54) (25.6,54) (54,82.4) (54,25.6)
+    Coins ext — couleur de mélange des 2 faces qui s'y rejoignent :
+        TL(35.1,35.1) = (jaune+menthe)/2  = #D3F2BA
+        TR(72.9,35.1) = (jaune+corail)/2  = #FFC9A6
+        BR(72.9,72.9) = (corail+lavande)/2 = #E4B2D6
+        BL(35.1,72.9) = (lavande+menthe)/2 = #B8DBE9
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Quadrant top-right : jaune pastel -->
+    <!-- Spokes extérieurs — couleurs solides -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FFE5A0"
         android:strokeWidth="2.2"
         android:strokeLineCap="round"
-        android:pathData="M82.4,54 L54,25.6 M75.3,32.7 L82.4,54 M75.3,32.7 L54,25.6" />
-
-    <!-- Quadrant bottom-right : corail pastel -->
+        android:pathData="M54,25.7 L35.1,35.1 M54,25.7 L72.9,35.1" />
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FFADAD"
         android:strokeWidth="2.2"
         android:strokeLineCap="round"
-        android:pathData="M82.4,54 L54,82.4 M75.3,75.3 L82.4,54 M75.3,75.3 L54,82.4" />
-
-    <!-- Quadrant bottom-left : lavande pastel -->
+        android:pathData="M82.3,54 L72.9,35.1 M82.3,54 L72.9,72.9" />
     <path
         android:fillColor="#00000000"
         android:strokeColor="#C9B8FF"
         android:strokeWidth="2.2"
         android:strokeLineCap="round"
-        android:pathData="M25.6,54 L54,82.4 M32.7,75.3 L25.6,54 M32.7,75.3 L54,82.4" />
-
-    <!-- Quadrant top-left : menthe pastel -->
+        android:pathData="M54,82.3 L72.9,72.9 M54,82.3 L35.1,72.9" />
     <path
         android:fillColor="#00000000"
         android:strokeColor="#A8FFD4"
         android:strokeWidth="2.2"
         android:strokeLineCap="round"
-        android:pathData="M25.6,54 L54,25.6 M32.7,32.7 L25.6,54 M32.7,32.7 L54,25.6" />
+        android:pathData="M25.7,54 L35.1,35.1 M25.7,54 L35.1,72.9" />
+
+    <!-- Carré extérieur — gradient entre couleurs mixtes des coins -->
+    <path android:fillColor="#00000000" android:strokeWidth="2.2" android:strokeLineCap="round"
+        android:pathData="M35.1,35.1 L72.9,35.1">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear"
+                android:startX="35.1" android:startY="35.1"
+                android:endX="72.9"   android:endY="35.1"
+                android:startColor="#D3F2BA" android:endColor="#FFC9A6"/>
+        </aapt:attr>
+    </path>
+    <path android:fillColor="#00000000" android:strokeWidth="2.2" android:strokeLineCap="round"
+        android:pathData="M72.9,35.1 L72.9,72.9">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear"
+                android:startX="72.9" android:startY="35.1"
+                android:endX="72.9"   android:endY="72.9"
+                android:startColor="#FFC9A6" android:endColor="#E4B2D6"/>
+        </aapt:attr>
+    </path>
+    <path android:fillColor="#00000000" android:strokeWidth="2.2" android:strokeLineCap="round"
+        android:pathData="M72.9,72.9 L35.1,72.9">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear"
+                android:startX="72.9" android:startY="72.9"
+                android:endX="35.1"   android:endY="72.9"
+                android:startColor="#E4B2D6" android:endColor="#B8DBE9"/>
+        </aapt:attr>
+    </path>
+    <path android:fillColor="#00000000" android:strokeWidth="2.2" android:strokeLineCap="round"
+        android:pathData="M35.1,72.9 L35.1,35.1">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear"
+                android:startX="35.1" android:startY="72.9"
+                android:endX="35.1"   android:endY="35.1"
+                android:startColor="#B8DBE9" android:endColor="#D3F2BA"/>
+        </aapt:attr>
+    </path>
+
+    <!-- Spokes intérieurs — semi-transparents -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#8CFFE5A0"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M54,25.7 L42.7,42.7 M54,25.7 L65.3,42.7" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#8CFFADAD"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M82.3,54 L65.3,42.7 M82.3,54 L65.3,65.3" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#8CC9B8FF"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M54,82.3 L65.3,65.3 M54,82.3 L42.7,65.3" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#8CA8FFD4"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M25.7,54 L42.7,42.7 M25.7,54 L42.7,65.3" />
+
+    <!-- Carré intérieur — même dégradé, semi-transparent -->
+    <path android:fillColor="#00000000" android:strokeWidth="1.5" android:strokeLineCap="round"
+        android:pathData="M42.7,42.7 L65.3,42.7">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear"
+                android:startX="42.7" android:startY="42.7"
+                android:endX="65.3"   android:endY="42.7"
+                android:startColor="#8CD3F2BA" android:endColor="#8CFFC9A6"/>
+        </aapt:attr>
+    </path>
+    <path android:fillColor="#00000000" android:strokeWidth="1.5" android:strokeLineCap="round"
+        android:pathData="M65.3,42.7 L65.3,65.3">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear"
+                android:startX="65.3" android:startY="42.7"
+                android:endX="65.3"   android:endY="65.3"
+                android:startColor="#8CFFC9A6" android:endColor="#8CE4B2D6"/>
+        </aapt:attr>
+    </path>
+    <path android:fillColor="#00000000" android:strokeWidth="1.5" android:strokeLineCap="round"
+        android:pathData="M65.3,65.3 L42.7,65.3">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear"
+                android:startX="65.3" android:startY="65.3"
+                android:endX="42.7"   android:endY="65.3"
+                android:startColor="#8CE4B2D6" android:endColor="#8CB8DBE9"/>
+        </aapt:attr>
+    </path>
+    <path android:fillColor="#00000000" android:strokeWidth="1.5" android:strokeLineCap="round"
+        android:pathData="M42.7,65.3 L42.7,42.7">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear"
+                android:startX="42.7" android:startY="65.3"
+                android:endX="42.7"   android:endY="42.7"
+                android:startColor="#8CB8DBE9" android:endColor="#8CD3F2BA"/>
+        </aapt:attr>
+    </path>
 
 </vector>
