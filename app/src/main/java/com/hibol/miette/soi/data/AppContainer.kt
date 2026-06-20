@@ -6,6 +6,7 @@ import com.hibol.miette.soi.data.repository.EmotionRepository
 import com.hibol.miette.soi.data.repository.EntryRepository
 import com.hibol.miette.soi.data.repository.PartRepository
 import com.hibol.miette.soi.data.repository.ProfileRepository
+import com.hibol.miette.soi.data.repository.CycleDayRepository
 import com.hibol.miette.soi.data.repository.TagRepository
 
 class AppContainer(context: Context) {
@@ -16,4 +17,5 @@ class AppContainer(context: Context) {
     val tagRepository = TagRepository(database)
     val entryRepository = EntryRepository(database)
     val partRepository = PartRepository(database)
+    val cycleDayRepository = CycleDayRepository(database)
 }

@@ -21,9 +21,10 @@ import com.hibol.miette.soi.data.entity.*
         Part::class,
         PartTrait::class,
         PartTraitLink::class,
-        EntryPart::class
+        EntryPart::class,
+        CycleDay::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = true
 )
 abstract class SoiDatabase : RoomDatabase() {
@@ -41,6 +42,7 @@ abstract class SoiDatabase : RoomDatabase() {
     abstract fun partDao(): PartDao
     abstract fun partTraitDao(): PartTraitDao
     abstract fun entryPartDao(): EntryPartDao
+    abstract fun cycleDayDao(): CycleDayDao
 
     companion object {
         @Volatile
@@ -53,7 +55,7 @@ abstract class SoiDatabase : RoomDatabase() {
                     SoiDatabase::class.java,
                     "soi_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
                     .build().also { INSTANCE = it }
             }
         }

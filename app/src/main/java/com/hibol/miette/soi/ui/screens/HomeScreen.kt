@@ -40,7 +40,8 @@ fun HomeScreen(navController: NavController) {
         factory = HomeViewModel.Factory(
             app.container.profileRepository,
             app.container.entryRepository,
-            app.container.emotionRepository
+            app.container.emotionRepository,
+            app.container.cycleDayRepository
         )
     )
 
@@ -48,6 +49,8 @@ fun HomeScreen(navController: NavController) {
     val profileName by viewModel.profileName.collectAsState()
     val currentMonth by viewModel.currentMonth.collectAsState()
     val emotionColors by viewModel.emotionColors.collectAsState()
+    val cycleMode by viewModel.cycleMode.collectAsState()
+    val cycleDays by viewModel.cycleDays.collectAsState()
     var showPicker by remember { mutableStateOf(false) }
     var pickerDate by remember { mutableStateOf<LocalDate?>(null) }
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
@@ -133,6 +136,8 @@ fun HomeScreen(navController: NavController) {
                 CalendarView(
                     entries = entries,
                     currentMonth = currentMonth,
+                    cycleDays = cycleDays,
+                    cycleMode = cycleMode,
                     onMonthChange = { newMonth -> viewModel.setMonth(newMonth) },
                     onDayClick = { date ->
                         dayIndexMap[date]?.let { index ->
@@ -145,6 +150,8 @@ fun HomeScreen(navController: NavController) {
                         pickerDate = date
                         showPicker = true
                     },
+                    onCycleModeToggle = { viewModel.toggleCycleMode() },
+                    onCycleDayToggle = { date -> viewModel.toggleCycleDay(date) },
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
                 )
             }
