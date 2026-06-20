@@ -13,6 +13,7 @@ import com.hibol.miette.soi.data.entity.PartCount
 import com.hibol.miette.soi.data.entity.PeriodStats
 import com.hibol.miette.soi.data.entity.TagCount
 import com.hibol.miette.soi.data.entity.TopSecondaryEmotion
+import com.hibol.miette.soi.data.repository.CycleDayRepository
 import com.hibol.miette.soi.data.repository.EmotionRepository
 import com.hibol.miette.soi.data.repository.EntryRepository
 import com.hibol.miette.soi.data.repository.PartRepository
@@ -78,7 +79,8 @@ class ExplorationViewModel(
     private val profileRepository: ProfileRepository,
     private val entryRepository: EntryRepository,
     private val emotionRepository: EmotionRepository,
-    private val partRepository: PartRepository
+    private val partRepository: PartRepository,
+    private val cycleDayRepository: CycleDayRepository
 ) : ViewModel() {
 
     private val _selectedPeriod = MutableStateFlow(Period.WEEK)
@@ -212,6 +214,17 @@ class ExplorationViewModel(
             }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HeatmapUiState.Loading)
 
+    val heatmapCycleDays: StateFlow<Set<LocalDate>> = combine(
+        heatmapUiState,
+        profileRepository.getProfile()
+    ) { state, profile -> state to profile }
+        .flatMapLatest { (state, profile) ->
+            if (state !is HeatmapUiState.Ready || profile == null) return@flatMapLatest flowOf(emptySet())
+            val endDate = state.startDate.plusDays((state.columnCount - 1).toLong())
+            cycleDayRepository.getForRange(profile.id, state.startDate, endDate)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+
     // Combine uniquement sur _selectedCell + heatmapUiState (déjà agrégé) — pas de 5e flow
     val tooltipUiState: StateFlow<TooltipUiState> = combine(
         _selectedCell,
@@ -322,11 +335,12 @@ class ExplorationViewModel(
         private val profileRepository: ProfileRepository,
         private val entryRepository: EntryRepository,
         private val emotionRepository: EmotionRepository,
-        private val partRepository: PartRepository
+        private val partRepository: PartRepository,
+        private val cycleDayRepository: CycleDayRepository
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            ExplorationViewModel(profileRepository, entryRepository, emotionRepository, partRepository) as T
+            ExplorationViewModel(profileRepository, entryRepository, emotionRepository, partRepository, cycleDayRepository) as T
     }
 }
 

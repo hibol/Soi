@@ -21,4 +21,8 @@ class CycleDayRepository(private val db: SoiDatabase) {
         return db.cycleDayDao().getEpochDaysInRange(profileId, from, to)
             .map { epochs -> epochs.map { LocalDate.ofEpochDay(it) } }
     }
+
+    fun getForRange(profileId: Long, from: LocalDate, to: LocalDate): Flow<Set<LocalDate>> =
+        db.cycleDayDao().getEpochDaysInRange(profileId, from.toEpochDay(), to.toEpochDay())
+            .map { epochs -> epochs.map { LocalDate.ofEpochDay(it) }.toSet() }
 }

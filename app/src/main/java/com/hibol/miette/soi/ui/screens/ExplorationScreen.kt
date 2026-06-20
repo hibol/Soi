@@ -23,8 +23,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -88,7 +91,8 @@ fun ExplorationScreen(navController: NavController) {
             app.container.profileRepository,
             app.container.entryRepository,
             app.container.emotionRepository,
-            app.container.partRepository
+            app.container.partRepository,
+            app.container.cycleDayRepository
         )
     )
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
@@ -142,6 +146,7 @@ fun ExplorationHeatmap(viewModel: ExplorationViewModel) {
     val selectedTypes by viewModel.selectedEntryTypes.collectAsState()
     val tooltipState by viewModel.tooltipUiState.collectAsState()
     val selectedCell by viewModel.selectedCell.collectAsState()
+    val cycleDays by viewModel.heatmapCycleDays.collectAsState()
     var tooltipAnchor by remember { mutableStateOf(IntOffset.Zero) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -169,6 +174,7 @@ fun ExplorationHeatmap(viewModel: ExplorationViewModel) {
             is HeatmapUiState.Ready -> {
                 HeatmapGrid(
                     state = state,
+                    cycleDays = cycleDays,
                     selectedCell = selectedCell,
                     onCellPress = { col, emotionId, offset ->
                         tooltipAnchor = offset
@@ -255,6 +261,7 @@ private fun PeriodSelector(selected: Period, onSelect: (Period) -> Unit) {
 @Composable
 private fun HeatmapGrid(
     state: HeatmapUiState.Ready,
+    cycleDays: Set<java.time.LocalDate>,
     selectedCell: SelectedCell?,
     onCellPress: (col: Int, emotionId: Long, offset: IntOffset) -> Unit,
     onCellRelease: () -> Unit
@@ -262,6 +269,7 @@ private fun HeatmapGrid(
     val labelColWidth = 68.dp
     val cellHeight = 32.dp
     val headerHeight = 32.dp  // 2 lignes × 16dp
+    val footerHeight = 10.dp
 
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         val cellWidth: Dp = if (state.period == Period.MONTH) 30.dp
@@ -288,6 +296,7 @@ private fun HeatmapGrid(
                         )
                     }
                 }
+                Spacer(modifier = Modifier.height(footerHeight))
             }
 
             // Grille (scrollable pour 30j)
@@ -297,6 +306,12 @@ private fun HeatmapGrid(
 
             Row(modifier = gridModifier) {
                 for (col in 0 until state.columnCount) {
+                    val isCycleCol = when (state.period) {
+                        Period.THREE_MONTHS -> (0..6).any {
+                            state.startDate.plusDays(col * 7L + it) in cycleDays
+                        }
+                        else -> state.startDate.plusDays(col.toLong()) in cycleDays
+                    }
                     Column(modifier = Modifier.width(cellWidth)) {
 
                         // Header X : ligne 1 (lettre/mois) + ligne 2 (chiffre)
@@ -338,6 +353,20 @@ private fun HeatmapGrid(
                                 onPress = { c, e, offset -> onCellPress(c, e, offset) },
                                 onRelease = onCellRelease
                             )
+                        }
+
+                        // Footer : goutte cycle
+                        Box(
+                            modifier = Modifier.height(footerHeight).fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (isCycleCol) {
+                                Icon(
+                                    imageVector = Icons.Default.WaterDrop,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(6.dp),
+                                )
+                            }
                         }
                     }
                 }
