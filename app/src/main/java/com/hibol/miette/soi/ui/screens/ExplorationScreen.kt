@@ -453,23 +453,20 @@ private fun IntensityDots(intensity: Int, color: Color) {
 private fun buildXLabels(state: HeatmapUiState.Ready, col: Int): Pair<String, String> =
     when (state.period) {
         Period.WEEK -> {
-            val d = LocalDate.ofEpochDay(state.startEpochDay + col)
+            val d = state.startDate.plusDays(col.toLong())
             val abbr = arrayOf("L", "M", "M", "J", "V", "S", "D")
             Pair(abbr[d.dayOfWeek.value - 1], "${d.dayOfMonth}")
         }
         Period.MONTH -> {
-            val d = LocalDate.ofEpochDay(state.startEpochDay + col)
+            val d = state.startDate.plusDays(col.toLong())
             val abbr = arrayOf("L", "M", "M", "J", "V", "S", "D")
-            // Numéro du mois visible tous les 5 jours pour éviter l'entassement
             val dayNum = if (col % 5 == 0) "${d.dayOfMonth}" else ""
             Pair(abbr[d.dayOfWeek.value - 1], dayNum)
         }
         Period.THREE_MONTHS -> {
-            // Ligne 1 : abréviation du mois uniquement quand il change
-            // Ligne 2 : numéro du jour de début de semaine, une semaine sur deux
-            val weekStart = LocalDate.ofEpochDay(state.startEpochDay + col * 7L)
+            val weekStart = state.startDate.plusDays(col * 7L)
             val isNewMonth = col == 0 ||
-                weekStart.monthValue != LocalDate.ofEpochDay(state.startEpochDay + (col - 1) * 7L).monthValue
+                weekStart.monthValue != state.startDate.plusDays((col - 1) * 7L).monthValue
             val topLabel = if (isNewMonth) monthFr(weekStart.monthValue) else ""
             val bottomLabel = if (col % 2 == 0) "${weekStart.dayOfMonth}" else ""
             Pair(topLabel, bottomLabel)

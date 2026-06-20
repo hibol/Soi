@@ -28,7 +28,7 @@ interface EntryEmotionDao {
     fun getAllForProfile(profileId: Long): Flow<List<EntryEmotion>>
 
     @Query("""
-        SELECT (e.entryDate / 86400000) AS dayEpoch,
+        SELECT strftime('%Y-%m-%d', datetime(e.entryDate / 1000, 'unixepoch', 'localtime')) AS localDay,
                COALESCE(em.parentId, em.id) AS primaryEmotionId,
                CAST(MAX(ee.intensity) AS FLOAT) AS intensity
         FROM entry_emotion ee
@@ -38,8 +38,8 @@ interface EntryEmotionDao {
           AND e.entryDate >= :fromMillis
           AND e.entryDate < :toMillis
           AND e.entryType IN (:entryTypes)
-        GROUP BY (e.entryDate / 86400000), COALESCE(em.parentId, em.id)
-        ORDER BY dayEpoch ASC
+        GROUP BY localDay, COALESCE(em.parentId, em.id)
+        ORDER BY localDay ASC
     """)
     fun getHeatmapData(
         profileId: Long,

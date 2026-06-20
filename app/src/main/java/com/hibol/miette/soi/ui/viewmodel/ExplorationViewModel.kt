@@ -60,7 +60,7 @@ sealed class HeatmapUiState {
         val period: Period,
         val primaryEmotions: List<Emotion>,   // triées par label — ordre stable des lignes Y
         val columnCount: Int,
-        val startEpochDay: Long,              // jour-0 de la période
+        val startDate: LocalDate,             // jour-0 de la période (fuseau local)
         val profileId: Long,                  // réutilisé par le tooltip
         val entryTypes: Set<EntryType>        // réutilisé par le tooltip
     ) : HeatmapUiState()
@@ -146,8 +146,10 @@ class ExplorationViewModel(
     ) { period, profile -> period to profile }
         .flatMapLatest { (period, profile) ->
             if (profile == null) return@flatMapLatest flowOf(null)
+            val zone = ZoneId.systemDefault()
+            val fromMillis = LocalDate.now(zone).minusDays((period.days - 1).toLong())
+                .atStartOfDay(zone).toInstant().toEpochMilli()
             val now = System.currentTimeMillis()
-            val fromMillis = now - period.days.toLong() * 86_400_000L
             combine(
                 entryRepository.getByDateRange(profile.id, fromMillis, now),
                 entryRepository.getMemoryQualityCounts(profile.id, fromMillis, now),
@@ -200,11 +202,13 @@ class ExplorationViewModel(
         HeatmapInputs(period, types, profile?.id, emotions)
     }.flatMapLatest { inputs ->
         if (inputs.profileId == null) return@flatMapLatest flowOf(HeatmapUiState.Loading)
+        val zone = ZoneId.systemDefault()
+        val startDate = LocalDate.now(zone).minusDays((inputs.period.days - 1).toLong())
+        val fromMillis = startDate.atStartOfDay(zone).toInstant().toEpochMilli()
         val now = System.currentTimeMillis()
-        val fromMillis = now - inputs.period.days.toLong() * 86_400_000L
         entryRepository.getHeatmapData(inputs.profileId, fromMillis, now, inputs.types.map { it.value })
             .map { points ->
-                buildHeatmapState(points, inputs.allEmotions, inputs.period, fromMillis, inputs.profileId, inputs.types)
+                buildHeatmapState(points, inputs.allEmotions, inputs.period, startDate, inputs.profileId, inputs.types)
             }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HeatmapUiState.Loading)
 
@@ -217,7 +221,7 @@ class ExplorationViewModel(
         if (cell == null || heatmap !is HeatmapUiState.Ready) {
             return@flatMapLatest flowOf(TooltipUiState.Hidden)
         }
-        val (fromMillis, toMillis) = cellTimeRange(cell.col, heatmap.startEpochDay, heatmap.period)
+        val (fromMillis, toMillis) = cellTimeRange(cell.col, heatmap.startDate, heatmap.period)
         entryRepository.getTopSecondaryEmotions(
             heatmap.profileId, fromMillis, toMillis,
             heatmap.entryTypes.map { it.value }, cell.primaryEmotionId
@@ -228,7 +232,7 @@ class ExplorationViewModel(
             if (secondaries.isEmpty()) TooltipUiState.Hidden
             else TooltipUiState.Visible(
                 primaryLabel = primaryLabel,
-                colLabel = buildColLabel(cell.col, heatmap.startEpochDay, heatmap.period),
+                colLabel = buildColLabel(cell.col, heatmap.startDate, heatmap.period),
                 emotions = secondaries.map { e -> TooltipEmotion(e.label, primaryColor, e.maxIntensity) }
             )
         }
@@ -238,29 +242,29 @@ class ExplorationViewModel(
         points: List<EmotionTrendPoint>,
         allEmotions: List<Emotion>,
         period: Period,
-        fromMillis: Long,
+        startDate: LocalDate,
         profileId: Long,
         types: Set<EntryType>
     ): HeatmapUiState {
         val primaries = allEmotions.filter { it.level == 1 }.sortedBy { it.label }
-        val startEpochDay = fromMillis / 86_400_000L
 
         val cells: Map<Pair<Int, Long>, Float> = when (period) {
             Period.WEEK, Period.MONTH -> {
                 points.associate { pt ->
-                    val col = (pt.dayEpoch - startEpochDay).toInt().coerceIn(0, period.days - 1)
+                    val dayOffset = ChronoUnit.DAYS.between(startDate, LocalDate.parse(pt.localDay)).toInt()
+                    val col = dayOffset.coerceIn(0, period.days - 1)
                     Pair(col, pt.primaryEmotionId) to pt.intensity
                 }
             }
             Period.THREE_MONTHS -> buildMap {
-                // SQL donne MAX par jour — on prend le max de la semaine pour chaque émotion
-                points.groupBy { ((it.dayEpoch - startEpochDay) / 7).toInt() }
-                    .forEach { (weekIdx, weekPts) ->
-                        weekPts.groupBy { it.primaryEmotionId }
-                            .forEach { (emotionId, ePts) ->
-                                put(Pair(weekIdx.coerceIn(0, 12), emotionId), ePts.maxOf { it.intensity })
-                            }
-                    }
+                points.groupBy {
+                    (ChronoUnit.DAYS.between(startDate, LocalDate.parse(it.localDay)) / 7).toInt()
+                }.forEach { (weekIdx, weekPts) ->
+                    weekPts.groupBy { it.primaryEmotionId }
+                        .forEach { (emotionId, ePts) ->
+                            put(Pair(weekIdx.coerceIn(0, 12), emotionId), ePts.maxOf { it.intensity })
+                        }
+                }
             }
         }
 
@@ -272,36 +276,40 @@ class ExplorationViewModel(
             period = period,
             primaryEmotions = primaries,
             columnCount = columnCount,
-            startEpochDay = startEpochDay,
+            startDate = startDate,
             profileId = profileId,
             entryTypes = types
         )
     }
 
-    private fun cellTimeRange(col: Int, startEpochDay: Long, period: Period): Pair<Long, Long> =
-        when (period) {
+    private fun cellTimeRange(col: Int, startDate: LocalDate, period: Period): Pair<Long, Long> {
+        val zone = ZoneId.systemDefault()
+        return when (period) {
             Period.WEEK, Period.MONTH -> {
-                val s = (startEpochDay + col) * 86_400_000L
-                s to s + 86_400_000L
+                val day = startDate.plusDays(col.toLong())
+                day.atStartOfDay(zone).toInstant().toEpochMilli() to
+                    day.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
             }
             Period.THREE_MONTHS -> {
-                val s = (startEpochDay + col * 7L) * 86_400_000L
-                s to s + 7L * 86_400_000L
+                val weekStart = startDate.plusDays(col * 7L)
+                weekStart.atStartOfDay(zone).toInstant().toEpochMilli() to
+                    weekStart.plusDays(7).atStartOfDay(zone).toInstant().toEpochMilli()
             }
         }
+    }
 
-    private fun buildColLabel(col: Int, startEpochDay: Long, period: Period): String =
+    private fun buildColLabel(col: Int, startDate: LocalDate, period: Period): String =
         when (period) {
             Period.WEEK -> {
-                val d = LocalDate.ofEpochDay(startEpochDay + col)
+                val d = startDate.plusDays(col.toLong())
                 "${arrayOf("Lun","Mar","Mer","Jeu","Ven","Sam","Dim")[d.dayOfWeek.value - 1]} ${d.dayOfMonth} ${monthFr(d.monthValue)}"
             }
             Period.MONTH -> {
-                val d = LocalDate.ofEpochDay(startEpochDay + col)
+                val d = startDate.plusDays(col.toLong())
                 "${d.dayOfMonth} ${monthFr(d.monthValue)}"
             }
             Period.THREE_MONTHS -> {
-                val start = LocalDate.ofEpochDay(startEpochDay + col * 7L)
+                val start = startDate.plusDays(col * 7L)
                 val end = start.plusDays(6)
                 val monthPart = if (start.monthValue != end.monthValue)
                     "${monthFr(start.monthValue)}–${monthFr(end.monthValue)}"

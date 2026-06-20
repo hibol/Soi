@@ -20,8 +20,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.hibol.miette.soi.data.entity.Entry
+import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.ZoneId
 import java.time.format.TextStyle
 import java.util.Locale
 
@@ -34,8 +36,9 @@ fun CalendarView(
     onDayLongClick: (LocalDate) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val zone = ZoneId.systemDefault()
     val entriesByDate = entries.groupBy {
-        LocalDate.ofEpochDay(it.entryDate / 86400000L)
+        Instant.ofEpochMilli(it.entryDate).atZone(zone).toLocalDate()
     }
 
     Column(
