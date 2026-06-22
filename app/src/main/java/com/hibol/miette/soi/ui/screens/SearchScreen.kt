@@ -1,7 +1,5 @@
 package com.hibol.miette.soi.ui.screens
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,14 +9,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
@@ -28,10 +24,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
@@ -44,36 +37,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.hibol.miette.soi.SoiApplication
-import com.hibol.miette.soi.data.entity.Emotion
 import com.hibol.miette.soi.data.entity.Entry
-import com.hibol.miette.soi.data.entity.EntryType
-import com.hibol.miette.soi.data.entity.Part
-import com.hibol.miette.soi.data.entity.Tag
 import com.hibol.miette.soi.ui.navigation.Routes
 import com.hibol.miette.soi.ui.theme.colorFamilyForType
 import com.hibol.miette.soi.ui.theme.extendedColorScheme
+import com.hibol.miette.soi.ui.util.buildHighlightedSnippet
 import com.hibol.miette.soi.ui.viewmodel.SearchFilters
 import com.hibol.miette.soi.ui.viewmodel.SearchViewModel
-import java.text.Normalizer
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-
-private enum class FilterSheet { TYPE, EMOTION, TAG, PART, PERIOD }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -130,15 +111,19 @@ fun SearchScreen(navController: NavController) {
         onExpandedChange = { if (!it) navController.popBackStack() },
         modifier = Modifier.fillMaxWidth()
     ) {
+        val emotionLabel = remember(filters.primaryEmotionId, primaryEmotions) {
+            primaryEmotions.find { it.id == filters.primaryEmotionId }?.label
+        }
         FilterChipsRow(
             filters = filters,
+            emotionLabel = emotionLabel,
             onChipClick = { sheet ->
                 // Chip actif → efface le filtre. Chip inactif → ouvre le sheet.
                 when {
                     sheet == FilterSheet.TYPE && filters.type != null ->
                         viewModel.setFilter(filters.copy(type = null))
                     sheet == FilterSheet.EMOTION && filters.primaryEmotionId != null ->
-                        viewModel.setFilter(filters.copy(primaryEmotionId = null, primaryEmotionLabel = null))
+                        viewModel.setFilter(filters.copy(primaryEmotionId = null))
                     sheet == FilterSheet.TAG && filters.tagLabel != null ->
                         viewModel.setFilter(filters.copy(tagLabel = null))
                     sheet == FilterSheet.PART && filters.partName != null ->
@@ -223,12 +208,7 @@ fun SearchScreen(navController: NavController) {
             emotions = primaryEmotions,
             currentId = filters.primaryEmotionId,
             onSelect = { emotion ->
-                viewModel.setFilter(
-                    filters.copy(
-                        primaryEmotionId = emotion.id,
-                        primaryEmotionLabel = emotion.label
-                    )
-                )
+                viewModel.setFilter(filters.copy(primaryEmotionId = emotion.id))
                 openSheet = null
             },
             onDismiss = { openSheet = null }
@@ -276,6 +256,7 @@ fun SearchScreen(navController: NavController) {
 @Composable
 private fun FilterChipsRow(
     filters: SearchFilters,
+    emotionLabel: String?,
     onChipClick: (FilterSheet) -> Unit
 ) {
     LazyRow(
@@ -286,14 +267,7 @@ private fun FilterChipsRow(
             FilterChip(
                 selected = filters.type != null,
                 onClick = { onChipClick(FilterSheet.TYPE) },
-                label = {
-                    Text(when (filters.type) {
-                        EntryType.DREAM     -> "Rêve"
-                        EntryType.SESSION   -> "Session"
-                        EntryType.LIFE_EVENT -> "Événement"
-                        null                -> "Type"
-                    })
-                },
+                label = { Text(filters.type?.label ?: "Type") },
                 trailingIcon = if (filters.type != null) {
                     { Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(16.dp)) }
                 } else null
@@ -303,7 +277,7 @@ private fun FilterChipsRow(
             FilterChip(
                 selected = filters.primaryEmotionId != null,
                 onClick = { onChipClick(FilterSheet.EMOTION) },
-                label = { Text(filters.primaryEmotionLabel ?: "Émotion") },
+                label = { Text(emotionLabel ?: "Émotion") },
                 trailingIcon = if (filters.primaryEmotionId != null) {
                     { Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(16.dp)) }
                 } else null
@@ -349,187 +323,6 @@ private fun FilterChipsRow(
     }
 }
 
-// ── ModalBottomSheets ─────────────────────────────────────────────────────────
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun TypeSheet(
-    currentType: EntryType?,
-    onSelect: (EntryType) -> Unit,
-    onDismiss: () -> Unit
-) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Text(
-            "Type d'entrée",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-        )
-        listOf(EntryType.DREAM to "Rêve", EntryType.SESSION to "Session", EntryType.LIFE_EVENT to "Événement")
-            .forEach { (type, label) ->
-                ListItem(
-                    headlineContent = { Text(label) },
-                    leadingContent = {
-                        RadioButton(selected = currentType == type, onClick = null)
-                    },
-                    modifier = Modifier.clickable { onSelect(type) }
-                )
-            }
-        Spacer(Modifier.height(16.dp))
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun EmotionSheet(
-    emotions: List<Emotion>,
-    currentId: Long?,
-    onSelect: (Emotion) -> Unit,
-    onDismiss: () -> Unit
-) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Text(
-            "Émotion",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-        )
-        LazyColumn {
-            items(emotions, key = { it.id }) { emotion ->
-                val emotionColor = remember(emotion.color) {
-                    try { Color(android.graphics.Color.parseColor(emotion.color)) }
-                    catch (e: Exception) { Color.Gray }
-                }
-                ListItem(
-                    headlineContent = { Text(emotion.label) },
-                    leadingContent = {
-                        Box(
-                            modifier = Modifier
-                                .size(16.dp)
-                                .clip(CircleShape)
-                                .background(emotionColor)
-                        )
-                    },
-                    trailingContent = {
-                        RadioButton(selected = currentId == emotion.id, onClick = null)
-                    },
-                    modifier = Modifier.clickable { onSelect(emotion) }
-                )
-            }
-            item { Spacer(Modifier.height(16.dp)) }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun TagSheet(
-    tags: List<Tag>,
-    currentLabel: String?,
-    onSelect: (Tag) -> Unit,
-    onDismiss: () -> Unit
-) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Text(
-            "Tag",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-        )
-        if (tags.isEmpty()) {
-            Text(
-                "Aucun tag enregistré",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(16.dp)
-            )
-        } else {
-            LazyColumn {
-                items(tags, key = { it.id }) { tag ->
-                    ListItem(
-                        headlineContent = { Text("#${tag.label}") },
-                        trailingContent = {
-                            RadioButton(
-                                selected = currentLabel?.equals(tag.label, ignoreCase = true) == true,
-                                onClick = null
-                            )
-                        },
-                        modifier = Modifier.clickable { onSelect(tag) }
-                    )
-                }
-                item { Spacer(Modifier.height(16.dp)) }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun PartSheet(
-    parts: List<Part>,
-    currentName: String?,
-    onSelect: (Part) -> Unit,
-    onDismiss: () -> Unit
-) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Text(
-            "Partie",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-        )
-        if (parts.isEmpty()) {
-            Text(
-                "Aucune partie enregistrée",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(16.dp)
-            )
-        } else {
-            LazyColumn {
-                items(parts, key = { it.id }) { part ->
-                    ListItem(
-                        headlineContent = { Text(part.name) },
-                        supportingContent = part.role?.let { role ->
-                            { Text(roleLabel(role), style = MaterialTheme.typography.bodySmall) }
-                        },
-                        trailingContent = {
-                            RadioButton(
-                                selected = currentName?.equals(part.name, ignoreCase = true) == true,
-                                onClick = null
-                            )
-                        },
-                        modifier = Modifier.clickable { onSelect(part) }
-                    )
-                }
-                item { Spacer(Modifier.height(16.dp)) }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun PeriodSheet(
-    currentDays: Int?,
-    onSelect: (Int) -> Unit,
-    onDismiss: () -> Unit
-) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Text(
-            "Période",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-        )
-        listOf(7 to "7 jours", 30 to "30 jours", 90 to "3 mois").forEach { (days, label) ->
-            ListItem(
-                headlineContent = { Text(label) },
-                leadingContent = {
-                    RadioButton(selected = currentDays == days, onClick = null)
-                },
-                modifier = Modifier.clickable { onSelect(days) }
-            )
-        }
-        Spacer(Modifier.height(16.dp))
-    }
-}
-
 // ── SearchResultCard ──────────────────────────────────────────────────────────
 
 @Composable
@@ -549,13 +342,6 @@ private fun SearchResultCard(
             .atZone(ZoneId.systemDefault())
             .toLocalDate()
             .format(dateFormatter)
-    }
-
-    val typeLabel = when (entry.type.value) {
-        "dream"      -> "Rêve"
-        "session"    -> "Session"
-        "life_event" -> "Événement"
-        else         -> ""
     }
 
     val highlightedText: AnnotatedString? = remember(entry.text, queryWords, highlightColor) {
@@ -585,7 +371,7 @@ private fun SearchResultCard(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = typeLabel,
+                text = entry.type.label,
                 style = MaterialTheme.typography.labelSmall,
                 color = colorFamily.color
             )
@@ -612,77 +398,4 @@ private fun SearchResultCard(
             )
         }
     }
-}
-
-// ── Utilitaires de surbrillance ───────────────────────────────────────────────
-
-/**
- * Normalisation NFD : "rêve" et "reve" sont équivalents côté SQLite (unicode61),
- * on fait pareil ici pour que la surbrillance corresponde au résultat FTS4.
- * NFD préserve le compte de caractères latins : les positions dans le texte
- * normalisé mappent directement sur celles du texte original (avec accents).
- */
-private fun buildHighlightedSnippet(
-    text: String,
-    words: List<String>,
-    highlightColor: Color
-): AnnotatedString {
-    val normalizedText = normalizeForSearch(text)
-    val normalizedWords = words.map { normalizeForSearch(it) }.filter { it.isNotBlank() }
-
-    val ranges = mutableListOf<IntRange>()
-    for (word in normalizedWords) {
-        var start = 0
-        while (start <= normalizedText.length - word.length) {
-            val idx = normalizedText.indexOf(word, start)
-            if (idx < 0) break
-            ranges.add(idx..idx + word.length - 1)
-            start = idx + 1
-        }
-    }
-
-    val firstMatchStart = ranges.minOfOrNull { it.first } ?: 0
-    val windowStart = (firstMatchStart - 40).coerceAtLeast(0)
-    val windowEnd = (windowStart + 150).coerceAtMost(text.length)
-    val snippet = text.substring(windowStart, windowEnd)
-
-    val snippetRanges = mergeRanges(
-        ranges
-            .map { (it.first - windowStart)..(it.last - windowStart) }
-            .filter { it.first >= 0 && it.last < snippet.length }
-            .sortedBy { it.first }
-    )
-
-    return buildAnnotatedString {
-        if (windowStart > 0) append("…")
-        var cursor = 0
-        for (r in snippetRanges) {
-            if (r.first > cursor) append(snippet.substring(cursor, r.first))
-            withStyle(SpanStyle(color = highlightColor, fontWeight = FontWeight.SemiBold)) {
-                append(snippet.substring(r.first, r.last + 1))
-            }
-            cursor = r.last + 1
-        }
-        if (cursor < snippet.length) append(snippet.substring(cursor))
-        if (windowEnd < text.length) append("…")
-    }
-}
-
-private fun normalizeForSearch(s: String): String =
-    Normalizer.normalize(s, Normalizer.Form.NFD)
-        .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
-        .lowercase(Locale.FRENCH)
-
-private fun mergeRanges(sorted: List<IntRange>): List<IntRange> {
-    if (sorted.isEmpty()) return emptyList()
-    val merged = mutableListOf(sorted[0])
-    for (r in sorted.drop(1)) {
-        val last = merged.last()
-        if (r.first <= last.last + 1) {
-            merged[merged.lastIndex] = last.first..maxOf(last.last, r.last)
-        } else {
-            merged.add(r)
-        }
-    }
-    return merged
 }

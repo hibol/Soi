@@ -275,6 +275,29 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
     }
 }
 
+val MIGRATION_10_11 = object : Migration(10, 11) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Correction des triggers UPDATE FTS : ils se déclenchaient sur tout UPDATE de entry,
+        // même quand text ne changeait pas (ex. mise à jour de isBlurred, entryDate…).
+        // Les nouveaux triggers ajoutent WHEN old.text IS NOT new.text pour n'agir
+        // que quand le texte change réellement. IS NOT est null-safe en SQLite.
+        db.execSQL("DROP TRIGGER IF EXISTS entry_fts_bu")
+        db.execSQL("DROP TRIGGER IF EXISTS entry_fts_au")
+        db.execSQL("""
+            CREATE TRIGGER entry_fts_bu BEFORE UPDATE ON entry
+                WHEN old.text IS NOT new.text BEGIN
+                DELETE FROM entry_fts WHERE docid = old.id;
+            END
+        """.trimIndent())
+        db.execSQL("""
+            CREATE TRIGGER entry_fts_au AFTER UPDATE ON entry
+                WHEN old.text IS NOT new.text AND new.text IS NOT NULL BEGIN
+                INSERT INTO entry_fts(docid, text) VALUES (new.id, new.text);
+            END
+        """.trimIndent())
+    }
+}
+
 val MIGRATION_4_5 = object : Migration(4, 5) {
     override fun migrate(db: SupportSQLiteDatabase) {
         // Recréer part_trait avec une seule colonne label (labelIncl devient label)

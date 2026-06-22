@@ -29,7 +29,7 @@ class EntryRepository(private val db: SoiDatabase) {
         emotionId: Long? = null,
         tagLabel: String? = null,
         partName: String? = null,
-        periodDays: Int? = null
+        since: Long? = null
     ): Flow<List<Entry>> {
         val args = mutableListOf<Any>(profileId)
         val conditions = mutableListOf("e.profileId = ?")
@@ -44,10 +44,9 @@ class EntryRepository(private val db: SoiDatabase) {
             args.add(it)
         }
 
-        periodDays?.let { days ->
-            val since = System.currentTimeMillis() - days.toLong() * 24L * 60L * 60L * 1000L
+        since?.let {
             conditions.add("e.entryDate >= ?")
-            args.add(since)
+            args.add(it)
         }
 
         tagLabel?.let { label ->

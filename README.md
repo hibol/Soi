@@ -50,12 +50,18 @@ Application Android personnelle pour tenir un journal de rêves et de sessions t
 - Stats par période : répartition par type d'entrée, moyenne par semaine, jour de semaine le plus actif, qualité de mémorisation des rêves, top tags, top Parties mentionnées
 - Filtre par type d'entrée
 
+**Recherche**
+- Barre de recherche plein texte sur tous les journaux via FTS4 (SQLite), tokenizer `unicode61` — insensible aux accents et à la casse
+- Recherche préfixe : "rêv" remonte "rêve", "rêveur", etc.
+- 5 filtres cumulables : type d'entrée, émotion primaire (et ses secondaires), tag, Partie, période (7 j / 30 j / 3 mois)
+- Résultats avec extrait contextuel surligné, défloutage au maintien pour les entrées floutées
+
 **Réglages**
 - Color picker HSV par émotion primaire, persisté en base, mis à jour de façon réactive dans toutes les vues
 
 ---
 
-## Schéma de base de données (v8)
+## Schéma de base de données (v11)
 
 | Table | Description |
 |---|---|
@@ -75,7 +81,8 @@ Application Android personnelle pour tenir un journal de rêves et de sessions t
 | `part_trait_link` | Liaison many-to-many Part ↔ PartTrait |
 | `health_entry` | Entrées santé — medication / illness / other *(prévu V2)* |
 | `part_relation` | Relation directionnelle entre deux Parties *(prévu V2)* |
-| `cycle_day` | Jours de cycle menstruel *(prévu V2)* |
+| `cycle_day` | Jours de cycle menstruel |
+| `entry_fts` | Index FTS4 sur `entry.text` (table virtuelle, synchronisée par triggers) |
 
 ---
 

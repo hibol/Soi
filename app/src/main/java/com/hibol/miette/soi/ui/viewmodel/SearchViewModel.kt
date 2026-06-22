@@ -24,11 +24,12 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
+import java.time.LocalDate
+import java.time.ZoneId
 
 data class SearchFilters(
     val type: EntryType? = null,
     val primaryEmotionId: Long? = null,
-    val primaryEmotionLabel: String? = null,
     val tagLabel: String? = null,
     val partName: String? = null,
     val periodDays: Int? = null
@@ -77,15 +78,22 @@ class SearchViewModel(
         Triple(profile, query, filters)
     }.flatMapLatest { (profile, query, filters) ->
         if (profile == null || (query.isBlank() && filters.isEmpty)) flowOf(emptyList())
-        else entryRepository.search(
-            profileId = profile.id,
-            rawQuery = query,
-            typeFilter = filters.type?.value,
-            emotionId = filters.primaryEmotionId,
-            tagLabel = filters.tagLabel,
-            partName = filters.partName,
-            periodDays = filters.periodDays
-        )
+        else {
+            val zone = ZoneId.systemDefault()
+            val since = filters.periodDays?.let { days ->
+                LocalDate.now(zone).minusDays((days - 1).toLong())
+                    .atStartOfDay(zone).toInstant().toEpochMilli()
+            }
+            entryRepository.search(
+                profileId = profile.id,
+                rawQuery = query,
+                typeFilter = filters.type?.value,
+                emotionId = filters.primaryEmotionId,
+                tagLabel = filters.tagLabel,
+                partName = filters.partName,
+                since = since
+            )
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun onQueryChange(q: String) { _query.value = q }
