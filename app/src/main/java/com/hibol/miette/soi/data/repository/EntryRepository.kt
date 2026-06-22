@@ -22,15 +22,65 @@ class EntryRepository(private val db: SoiDatabase) {
     fun getById(id: Long): Flow<Entry?> =
         db.entryDao().getById(id)
 
-    fun search(profileId: Long, rawQuery: String): Flow<List<Entry>> {
+    fun search(
+        profileId: Long,
+        rawQuery: String,
+        typeFilter: String? = null,
+        emotionId: Long? = null,
+        tagLabel: String? = null,
+        partName: String? = null,
+        periodDays: Int? = null
+    ): Flow<List<Entry>> {
+        val args = mutableListOf<Any>(profileId)
+        val conditions = mutableListOf("e.profileId = ?")
+
+        if (rawQuery.isNotBlank()) {
+            conditions.add("e.id IN (SELECT docid FROM entry_fts WHERE entry_fts MATCH ?)")
+            args.add(buildFtsQuery(rawQuery))
+        }
+
+        typeFilter?.let {
+            conditions.add("e.entryType = ?")
+            args.add(it)
+        }
+
+        periodDays?.let { days ->
+            val since = System.currentTimeMillis() - days.toLong() * 24L * 60L * 60L * 1000L
+            conditions.add("e.entryDate >= ?")
+            args.add(since)
+        }
+
+        tagLabel?.let { label ->
+            conditions.add("""EXISTS (
+                SELECT 1 FROM entry_tag et
+                JOIN tag t ON t.id = et.tagId
+                WHERE et.entryId = e.id AND LOWER(t.label) = LOWER(?)
+            )""")
+            args.add(label)
+        }
+
+        partName?.let { name ->
+            conditions.add("""EXISTS (
+                SELECT 1 FROM entry_part ep
+                JOIN part p ON p.id = ep.partId
+                WHERE ep.entryId = e.id AND LOWER(p.name) = LOWER(?)
+            )""")
+            args.add(name)
+        }
+
+        emotionId?.let { id ->
+            conditions.add("""EXISTS (
+                SELECT 1 FROM entry_emotion ee
+                JOIN emotion em ON em.id = ee.emotionId
+                WHERE ee.entryId = e.id AND (em.id = ? OR em.parentId = ?)
+            )""")
+            args.add(id)
+            args.add(id)
+        }
+
         val sql = SimpleSQLiteQuery(
-            """
-            SELECT e.* FROM entry e
-            WHERE e.id IN (SELECT docid FROM entry_fts WHERE entry_fts MATCH ?)
-            AND e.profileId = ?
-            ORDER BY e.entryDate DESC
-            """.trimIndent(),
-            arrayOf<Any>(buildFtsQuery(rawQuery), profileId)
+            "SELECT e.* FROM entry e WHERE ${conditions.joinToString(" AND ")} ORDER BY e.entryDate DESC",
+            args.toTypedArray<Any>()
         )
         return db.entryDao().searchRaw(sql)
     }
