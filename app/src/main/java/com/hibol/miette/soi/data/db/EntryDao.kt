@@ -3,7 +3,9 @@ package com.hibol.miette.soi.data.db
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.RawQuery
 import androidx.room.Update
+import androidx.sqlite.db.SupportSQLiteQuery
 import com.hibol.miette.soi.data.entity.Entry
 import kotlinx.coroutines.flow.Flow
 
@@ -44,4 +46,8 @@ interface EntryDao {
         ORDER BY entryDate ASC
     """)
     fun getByDateRange(profileId: Long, from: Long, to: Long): Flow<List<Entry>>
+
+    // observedEntities : Room sait qu'il doit invalider ce Flow quand entry change
+    @RawQuery(observedEntities = [Entry::class])
+    fun searchRaw(query: SupportSQLiteQuery): Flow<List<Entry>>
 }

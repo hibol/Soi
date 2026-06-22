@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -101,6 +102,9 @@ fun HomeScreen(navController: NavController) {
                     }
                 },
                 actions = {
+                    IconButton(onClick = { navController.navigate(Routes.SEARCH) }) {
+                        Icon(Icons.Default.Search, contentDescription = "Rechercher")
+                    }
                     IconButton(onClick = { navController.navigate(Routes.SETTINGS) }) {
                         Icon(Icons.Default.Settings, contentDescription = "Paramètres")
                     }

@@ -1,5 +1,6 @@
 package com.hibol.miette.soi.data.repository
 
+import androidx.sqlite.db.SimpleSQLiteQuery
 import com.hibol.miette.soi.data.db.SoiDatabase
 import com.hibol.miette.soi.data.entity.*
 import kotlinx.coroutines.flow.Flow
@@ -20,6 +21,29 @@ class EntryRepository(private val db: SoiDatabase) {
 
     fun getById(id: Long): Flow<Entry?> =
         db.entryDao().getById(id)
+
+    fun search(profileId: Long, rawQuery: String): Flow<List<Entry>> {
+        val sql = SimpleSQLiteQuery(
+            """
+            SELECT e.* FROM entry e
+            WHERE e.id IN (SELECT docid FROM entry_fts WHERE entry_fts MATCH ?)
+            AND e.profileId = ?
+            ORDER BY e.entryDate DESC
+            """.trimIndent(),
+            arrayOf<Any>(buildFtsQuery(rawQuery), profileId)
+        )
+        return db.entryDao().searchRaw(sql)
+    }
+
+    // FTS4 : chaque mot devient un préfixe (mot*), combinés en AND implicite.
+    // "rêve biz" → "rêve* biz*" : entrées contenant les deux préfixes simultanément.
+    private fun buildFtsQuery(raw: String): String =
+        raw.trim()
+            .split(Regex("\\s+"))
+            .filter { it.isNotBlank() }
+            .joinToString(" ") { token ->
+                token.replace("\"", "").replace("*", "") + "*"
+            }
 
     fun getEmotionsForEntry(entryId: Long): Flow<List<EntryEmotion>> =
         db.entryEmotionDao().getByEntry(entryId)

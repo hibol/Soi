@@ -17,6 +17,7 @@ import com.hibol.miette.soi.ui.screens.NewEntryScreen
 import com.hibol.miette.soi.ui.screens.PartDetailScreen
 import com.hibol.miette.soi.ui.screens.PartReadScreen
 import com.hibol.miette.soi.ui.screens.PartsListScreen
+import com.hibol.miette.soi.ui.screens.SearchScreen
 import com.hibol.miette.soi.ui.screens.SettingsScreen
 import com.hibol.miette.soi.ui.screens.SetupScreen
 import com.hibol.miette.soi.ui.screens.SplashScreen
@@ -35,6 +36,7 @@ object Routes {
     const val PART_DETAIL = "part/{partId}?role={role}"
     const val SETTINGS = "settings"
     const val EXPLORATION = "exploration"
+    const val SEARCH = "search"
 
     fun partRead(partId: Long) = "part_read/$partId"
 
@@ -133,6 +135,9 @@ fun NavGraph(
         }
         composable(Routes.EXPLORATION) {
             ExplorationScreen(navController)
+        }
+        composable(Routes.SEARCH) {
+            SearchScreen(navController)
         }
     }
 }

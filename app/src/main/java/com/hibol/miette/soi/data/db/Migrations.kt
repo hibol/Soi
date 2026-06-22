@@ -22,7 +22,7 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
                 source TEXT NOT NULL
             )
         """.trimIndent())
-        db.execSQL("CREATE UNIQUE INDEX index_tag_label ON tag_new(label)")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_tag_label ON tag_new(label)")
 
         // Insérer les tags dédupliqués : le plus ancien id par label survit
         db.execSQL("""
@@ -111,7 +111,7 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
                 `source` TEXT NOT NULL
             )
         """.trimIndent())
-        db.execSQL("CREATE UNIQUE INDEX `index_tag_label` ON `tag_new`(`label`)")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_tag_label` ON `tag_new`(`label`)")
         // MIN(id) par label pour dédupliquer au cas où (sans casser les refs entry_tag)
         db.execSQL("""
             INSERT INTO `tag_new` (`id`, `label`, `source`)
@@ -197,6 +197,81 @@ val MIGRATION_8_9 = object : Migration(8, 9) {
         """.trimIndent())
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_cycle_day_profileId` ON `cycle_day`(`profileId`)")
         db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_cycle_day_profileId_epochDay` ON `cycle_day`(`profileId`, `epochDay`)")
+    }
+}
+
+val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // ── Fix table tag ─────────────────────────────────────────────────────
+        // Migrations 2→3 et 6→7 créaient l'index sur tag_new AVANT le RENAME.
+        // Sur SQLite < 3.26.0 (Android < 9), pragma index_list(tag) ne retrouvait
+        // pas l'index après renommage → Room échoue à la validation.
+        // Fix : recréer tag_v10 sans index, puis créer l'index APRÈS le RENAME
+        // pour que son sql dans sqlite_master dise bien "ON tag" sur toutes les versions.
+        db.execSQL("DROP INDEX IF EXISTS `index_tag_label`")
+        db.execSQL("""
+            CREATE TABLE `tag_v10` (
+                `id`     INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `label`  TEXT    NOT NULL,
+                `source` TEXT    NOT NULL
+            )
+        """.trimIndent())
+        db.execSQL("""
+            INSERT OR IGNORE INTO `tag_v10` (`id`, `label`, `source`)
+            SELECT MIN(`id`), `label`, MIN(`source`) FROM `tag` GROUP BY LOWER(`label`)
+        """.trimIndent())
+        db.execSQL("""
+            UPDATE `entry_tag`
+            SET `tagId` = (
+                SELECT MIN(`id`) FROM `tag`
+                WHERE LOWER(`label`) = LOWER(
+                    (SELECT `label` FROM `tag` WHERE `id` = `entry_tag`.`tagId`)
+                )
+            )
+        """.trimIndent())
+        db.execSQL("DROP TABLE `tag`")
+        db.execSQL("ALTER TABLE `tag_v10` RENAME TO `tag`")
+        // Index créé APRÈS le rename → sqlite_master enregistre "ON tag", pas "ON tag_v10"
+        db.execSQL("CREATE UNIQUE INDEX `index_tag_label` ON `tag`(`label`)")
+
+        // ── Table FTS4 ────────────────────────────────────────────────────────
+        // FTS4 : universellement disponible sur Android (contrairement à FTS5 qui est absent
+        // de certains builds OEM). unicode61 normalise les accents pour le français.
+        // content="entry" = table externe : FTS4 ne stocke pas le texte, il lit entry.text.
+        db.execSQL("""
+            CREATE VIRTUAL TABLE IF NOT EXISTS entry_fts
+            USING fts4(content="entry", text, tokenize=unicode61)
+        """.trimIndent())
+
+        // Peuplement initial depuis les entrées existantes (docid = id dans entry)
+        db.execSQL("""
+            INSERT INTO entry_fts(docid, text)
+            SELECT id, text FROM entry WHERE text IS NOT NULL
+        """.trimIndent())
+
+        // BEFORE DELETE/UPDATE : retirer le document de l'index avant modification
+        db.execSQL("""
+            CREATE TRIGGER entry_fts_bd BEFORE DELETE ON entry BEGIN
+                DELETE FROM entry_fts WHERE docid = old.id;
+            END
+        """.trimIndent())
+        db.execSQL("""
+            CREATE TRIGGER entry_fts_bu BEFORE UPDATE ON entry BEGIN
+                DELETE FROM entry_fts WHERE docid = old.id;
+            END
+        """.trimIndent())
+
+        // AFTER INSERT/UPDATE : indexer le nouveau texte (si non nul)
+        db.execSQL("""
+            CREATE TRIGGER entry_fts_ai AFTER INSERT ON entry WHEN new.text IS NOT NULL BEGIN
+                INSERT INTO entry_fts(docid, text) VALUES (new.id, new.text);
+            END
+        """.trimIndent())
+        db.execSQL("""
+            CREATE TRIGGER entry_fts_au AFTER UPDATE ON entry WHEN new.text IS NOT NULL BEGIN
+                INSERT INTO entry_fts(docid, text) VALUES (new.id, new.text);
+            END
+        """.trimIndent())
     }
 }
 
