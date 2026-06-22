@@ -21,6 +21,27 @@ class SettingsViewModel(private val emotionRepository: EmotionRepository) : View
         }
     }
 
+    fun resetToDefaults() {
+        viewModelScope.launch {
+            primaryEmotions.value.forEach { emotion ->
+                DEFAULT_COLORS[emotion.label]?.let { default ->
+                    emotionRepository.update(emotion.copy(color = default))
+                }
+            }
+        }
+    }
+
+    companion object {
+        val DEFAULT_COLORS = mapOf(
+            "Colère"    to "#F94144",
+            "Dégoût"    to "#F38C2F",
+            "Joie"      to "#F9C74F",
+            "Peur"      to "#845EC2",
+            "Surprise"  to "#4CC9A0",
+            "Tristesse" to "#4895EF"
+        )
+    }
+
     class Factory(private val emotionRepository: EmotionRepository) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =

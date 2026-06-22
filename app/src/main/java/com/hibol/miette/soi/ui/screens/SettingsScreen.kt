@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -70,6 +71,7 @@ fun SettingsScreen(navController: NavController) {
 
     val primaryEmotions by viewModel.primaryEmotions.collectAsState()
     var editingEmotion by remember { mutableStateOf<Emotion?>(null) }
+    var showResetConfirm by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
 
@@ -95,12 +97,22 @@ fun SettingsScreen(navController: NavController) {
         ) {
             item(span = { GridItemSpan(2) }) {
                 Column {
-                    Text(
-                        "Couleurs des émotions",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 16.dp, end = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Couleurs des émotions",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        TextButton(onClick = { showResetConfirm = true }) {
+                            Text("Réinitialiser")
+                        }
+                    }
                     HorizontalDivider()
                 }
             }
@@ -111,6 +123,23 @@ fun SettingsScreen(navController: NavController) {
                 )
             }
         }
+    }
+
+    if (showResetConfirm) {
+        AlertDialog(
+            onDismissRequest = { showResetConfirm = false },
+            title = { Text("Réinitialiser les couleurs ?") },
+            text = { Text("Les couleurs personnalisées seront perdues et remplacées par les valeurs par défaut.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.resetToDefaults()
+                    showResetConfirm = false
+                }) { Text("Réinitialiser") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetConfirm = false }) { Text("Annuler") }
+            }
+        )
     }
 
     editingEmotion?.let { emotion ->
