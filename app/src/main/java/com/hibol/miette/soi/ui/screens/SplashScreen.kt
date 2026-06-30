@@ -1,16 +1,12 @@
 package com.hibol.miette.soi.ui.screens
 
-import androidx.biometric.BiometricManager
-import androidx.biometric.BiometricManager.Authenticators.*
-import androidx.biometric.BiometricPrompt
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -18,9 +14,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.ContextCompat
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
 import androidx.navigation.NavController
+import com.hibol.miette.soi.ui.auth.AuthSession
+import com.hibol.miette.soi.ui.auth.launchBiometric
 import com.hibol.miette.soi.ui.navigation.Routes
 import com.hibol.miette.soi.ui.viewmodel.SplashState
 import com.hibol.miette.soi.ui.viewmodel.SplashViewModel
@@ -35,8 +34,8 @@ fun SplashScreen(
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     var biometricLaunched by remember { mutableStateOf(false) }
+    var showRetry by remember { mutableStateOf(false) }
 
-    // Un Animatable par lettre — chaque lettre passe de alpha 0 à 1 avec un délai décalé
     val letterAlphas = remember { List(3) { Animatable(0f) } }
     LaunchedEffect(Unit) {
         letterAlphas.forEachIndexed { i, anim ->
@@ -45,6 +44,20 @@ fun SplashScreen(
                 anim.animateTo(1f, animationSpec = tween(durationMillis = 600))
             }
         }
+    }
+
+    fun triggerAuth() {
+        showRetry = false
+        launchBiometric(
+            activity = context as FragmentActivity,
+            onSuccess = {
+                AuthSession.refresh()
+                navController.navigate(Routes.HOME) {
+                    popUpTo(Routes.SPLASH) { inclusive = true }
+                }
+            },
+            onError = { showRetry = true }
+        )
     }
 
     LaunchedEffect(state) {
@@ -60,61 +73,7 @@ fun SplashScreen(
             is SplashState.HasProfile -> {
                 if (biometricLaunched) return@LaunchedEffect
                 biometricLaunched = true
-
-                val biometricManager = BiometricManager.from(context)
-
-                // BIOMETRIC_STRONG | DEVICE_CREDENTIAL n'est supporté qu'à partir d'API 30.
-                // On teste d'abord STRONG seul (empreinte = Class 3), puis WEAK (visage Class 2).
-                val authenticators = when {
-                    biometricManager.canAuthenticate(BIOMETRIC_STRONG) == BiometricManager.BIOMETRIC_SUCCESS ->
-                        BIOMETRIC_STRONG
-                    biometricManager.canAuthenticate(BIOMETRIC_WEAK) == BiometricManager.BIOMETRIC_SUCCESS ->
-                        BIOMETRIC_WEAK
-                    else -> null
-                }
-
-                if (authenticators != null) {
-                    val executor = ContextCompat.getMainExecutor(context)
-                    val prompt = BiometricPrompt(
-                        context as FragmentActivity,
-                        executor,
-                        object : BiometricPrompt.AuthenticationCallback() {
-                            override fun onAuthenticationSucceeded(
-                                result: BiometricPrompt.AuthenticationResult
-                            ) {
-                                navController.navigate(Routes.HOME) {
-                                    popUpTo(Routes.SPLASH) { inclusive = true }
-                                }
-                            }
-
-                            override fun onAuthenticationError(
-                                errorCode: Int,
-                                errString: CharSequence
-                            ) {
-                                // Auth annulée ou trop d'essais — on reste bloqué sur le splash
-                            }
-
-                            override fun onAuthenticationFailed() {
-                                // Tentative échouée — le prompt reste ouvert, Android gère le retry
-                            }
-                        }
-                    )
-
-                    prompt.authenticate(
-                        BiometricPrompt.PromptInfo.Builder()
-                            .setTitle("Soi")
-                            .setSubtitle("Déverrouiller")
-                            .setAllowedAuthenticators(authenticators)
-                            // setNegativeButtonText est obligatoire quand on n'utilise pas DEVICE_CREDENTIAL
-                            .setNegativeButtonText("Annuler")
-                            .build()
-                    )
-                } else {
-                    // Aucune biométrie disponible sur cet appareil → accès direct
-                    navController.navigate(Routes.HOME) {
-                        popUpTo(Routes.SPLASH) { inclusive = true }
-                    }
-                }
+                triggerAuth()
             }
         }
     }
@@ -134,6 +93,17 @@ fun SplashScreen(
                             alpha = letterAlphas[index].value
                         )
                     )
+                }
+            }
+
+            if (showRetry) {
+                Button(
+                    onClick = { triggerAuth() },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 80.dp)
+                ) {
+                    Text("Déverrouiller")
                 }
             }
         }
