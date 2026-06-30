@@ -3,7 +3,10 @@ package com.hibol.miette.soi.ui.components
 import android.graphics.BlurMaskFilter
 import android.graphics.Paint as NativePaint
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
@@ -176,18 +179,29 @@ fun EmotionConstellationView(
             .onSizeChanged { canvasSize = it }
             .clipToBounds()
             .pointerInput(Unit) {
-                detectTransformGestures { _, pan, zoom, _ ->
-                    val newScale = (zoomScale * zoom).coerceAtLeast(1f)
-                    zoomScale = newScale
-                    if (newScale > 1f) {
-                        val maxX = canvasSize.width  * (newScale - 1f) / 2f
-                        val maxY = canvasSize.height * (newScale - 1f) / 2f
-                        offsetX = (offsetX + pan.x).coerceIn(-maxX, maxX)
-                        offsetY = (offsetY + pan.y).coerceIn(-maxY, maxY)
-                    } else {
-                        offsetX = 0f
-                        offsetY = 0f
-                    }
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    do {
+                        val event = awaitPointerEvent()
+                        // À 1 doigt : on ne consomme rien → le scroll parent reprend la main.
+                        // À 2 doigts+ : on gère le pinch-to-zoom et on consomme.
+                        if (event.changes.size >= 2) {
+                            val zoomChange = event.calculateZoom()
+                            val panChange  = event.calculatePan()
+                            val newScale = (zoomScale * zoomChange).coerceAtLeast(1f)
+                            zoomScale = newScale
+                            if (newScale > 1f) {
+                                val maxX = canvasSize.width  * (newScale - 1f) / 2f
+                                val maxY = canvasSize.height * (newScale - 1f) / 2f
+                                offsetX = (offsetX + panChange.x).coerceIn(-maxX, maxX)
+                                offsetY = (offsetY + panChange.y).coerceIn(-maxY, maxY)
+                            } else {
+                                offsetX = 0f
+                                offsetY = 0f
+                            }
+                            event.changes.forEach { it.consume() }
+                        }
+                    } while (event.changes.any { it.pressed })
                 }
             }
     ) {
