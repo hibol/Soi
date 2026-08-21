@@ -38,8 +38,8 @@ fun TagPicker(
     val coroutineScope = rememberCoroutineScope()
 
     // Quand les suggestions apparaissent, s'assurer que tout le bloc reste visible
-    LaunchedEffect(filteredSuggestions.size) {
-        if (filteredSuggestions.isNotEmpty()) {
+    LaunchedEffect(input, filteredSuggestions.size) {
+        if (input.isNotBlank() && filteredSuggestions.isNotEmpty()) {
             bringIntoViewRequester.bringIntoView()
         }
     }
