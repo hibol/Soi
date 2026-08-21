@@ -8,9 +8,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import android.content.res.Configuration
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -66,7 +68,6 @@ fun NewEntryScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
 
-    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = entryDate)
     val timePickerState = rememberTimePickerState(
         initialHour = Instant.ofEpochMilli(entryDate).atZone(ZoneId.systemDefault()).hour,
         initialMinute = Instant.ofEpochMilli(entryDate).atZone(ZoneId.systemDefault()).minute,
@@ -108,24 +109,47 @@ fun NewEntryScreen(
         }
     }
 
-    // Date picker dialog
+    // Date picker dialog (forcé en locale française : jours/mois en français, lundi en premier)
     if (showDatePicker) {
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let { selectedMillis ->
-                        val newDate = Instant.ofEpochMilli(selectedMillis).atZone(ZoneId.of("UTC")).toLocalDate()
-                        val existingTime = Instant.ofEpochMilli(entryDate).atZone(ZoneId.systemDefault()).toLocalTime()
-                        entryDate = newDate.atTime(existingTime).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val frenchConfiguration = Configuration(LocalConfiguration.current).apply {
+            setLocale(Locale.FRANCE)
+        }
+        val frenchContext = LocalContext.current.createConfigurationContext(frenchConfiguration)
+
+        CompositionLocalProvider(
+            LocalContext provides frenchContext,
+            LocalConfiguration provides frenchConfiguration
+        ) {
+            val datePickerState = rememberDatePickerState(initialSelectedDateMillis = entryDate)
+            DatePickerDialog(
+                onDismissRequest = { showDatePicker = false },
+                confirmButton = {
+                    TextButton(onClick = {
+                        datePickerState.selectedDateMillis?.let { selectedMillis ->
+                            val newDate = Instant.ofEpochMilli(selectedMillis).atZone(ZoneId.of("UTC")).toLocalDate()
+                            val existingTime = Instant.ofEpochMilli(entryDate).atZone(ZoneId.systemDefault()).toLocalTime()
+                            entryDate = newDate.atTime(existingTime).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                        }
+                        showDatePicker = false
+                    }) { Text("OK") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDatePicker = false }) { Text("Annuler") }
+                }
+            ) {
+                DatePicker(
+                    state = datePickerState,
+                    title = { Text("Sélectionner une date", modifier = Modifier.padding(start = 24.dp, end = 12.dp, top = 16.dp)) },
+                    headline = {
+                        val headlineText = datePickerState.selectedDateMillis?.let { millis ->
+                            Instant.ofEpochMilli(millis).atZone(ZoneId.of("UTC")).toLocalDate()
+                                .format(DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.FRANCE))
+                        } ?: "Aucune date sélectionnée"
+                        Text(headlineText, modifier = Modifier.padding(start = 24.dp, end = 12.dp, bottom = 12.dp))
                     }
-                    showDatePicker = false
-                }) { Text("OK") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Annuler") }
+                )
             }
-        ) { DatePicker(state = datePickerState) }
+        }
     }
 
     // Time picker dialog
