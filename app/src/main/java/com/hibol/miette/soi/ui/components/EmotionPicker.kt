@@ -11,7 +11,9 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,18 +21,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.graphics.toColorInt
 import com.hibol.miette.soi.data.entity.Emotion
 import kotlinx.coroutines.launch
@@ -93,9 +97,31 @@ fun EmotionPicker(
         }
     }
 
+    // Remonter en haut de la liste des émotions secondaires à chaque changement d'émotion primaire
+    val secondaryListState = rememberLazyListState()
+    LaunchedEffect(safeIndex) {
+        secondaryListState.scrollToItem(0)
+    }
+
+    // Empêche le scroll dans la liste des émotions secondaires de se propager
+    // à la page : une fois le bout de la liste atteint, le reste du geste (et
+    // du fling) est "avalé" au lieu de faire scroller le Column parent.
+    val wheelNestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset = available
+
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                return available
+            }
+        }
+    }
+
     // Lecture de .value ici : la composition observe les Animatable → redessine le Canvas à chaque frame
     val expansions = expandAnims.map { it.value }
-    val textMeasurer = rememberTextMeasurer()
 
     Column(
         modifier = modifier,
@@ -142,9 +168,41 @@ fun EmotionPicker(
                     val cy = sizePx / 2
                     val n = primaryEmotions.size
                     val sweepAngle = 360f / n
+                    val gapDegrees = 3f
+
+                    // Halo lumineux derrière la zone sélectionnée, dessiné avant les segments
+                    // pour qu'il ne déborde pas visuellement sur les couleurs voisines.
+                    // Centré aux 3/4 de l'épaisseur de l'anneau (sous la couleur, proche du bord
+                    // extérieur) pour qu'une partie visible dépasse au-delà du segment opaque,
+                    // et aplati en ellipse alignée avec la courbure du segment.
+                    val activeMidAngleDeg = safeIndex * sweepAngle - 90f + sweepAngle / 2f
+                    val activeMidAngle = activeMidAngleDeg * PI.toFloat() / 180f
+                    val activeOuterR = baseOuterRPx + expansions[safeIndex]
+                    val haloRadialFraction = 0.75f
+                    val activeMidR = innerRPx + (activeOuterR - innerRPx) * haloRadialFraction
+                    val haloCenter = Offset(
+                        cx + activeMidR * cos(activeMidAngle),
+                        cy + activeMidR * sin(activeMidAngle)
+                    )
+                    val haloRadius = (activeOuterR - innerRPx) * 0.9f
+                    rotate(degrees = activeMidAngleDeg + 90f, pivot = haloCenter) {
+                        scale(scaleX = 2f, scaleY = 0.8f, pivot = haloCenter) {
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(activeColor.copy(alpha = 0.85f), activeColor.copy(alpha = 0f)),
+                                    center = haloCenter,
+                                    radius = haloRadius
+                                ),
+                                radius = haloRadius,
+                                center = haloCenter
+                            )
+                        }
+                    }
 
                     primaryEmotions.forEachIndexed { i, emotion ->
-                        val startAngle = i * sweepAngle - 90f
+                        val slotStart = i * sweepAngle - 90f
+                        val startAngle = slotStart + gapDegrees / 2f
+                        val drawSweep = sweepAngle - gapDegrees
                         val color = Color(emotion.color.toColorInt())
                         val outerR = baseOuterRPx + expansions[i]
 
@@ -152,34 +210,15 @@ fun EmotionPicker(
                         val outerRect = Rect(cx - outerR, cy - outerR, cx + outerR, cy + outerR)
                         val innerRect = Rect(cx - innerRPx, cy - innerRPx, cx + innerRPx, cy + innerRPx)
                         val path = Path().apply {
-                            arcTo(outerRect, startAngle, sweepAngle, true)
-                            arcTo(innerRect, startAngle + sweepAngle, -sweepAngle, false)
+                            arcTo(outerRect, startAngle, drawSweep, true)
+                            arcTo(innerRect, startAngle + drawSweep, -drawSweep, false)
                             close()
                         }
                         drawPath(path, color)
 
-                        // Label centré dans l'épaisseur de l'anneau
-                        val midAngle = startAngle + sweepAngle / 2f
-                        val midRad = midAngle * PI.toFloat() / 180f
-                        val labelR = (outerR + innerRPx) / 2f
-                        val lx = cx + labelR * cos(midRad)
-                        val ly = cy + labelR * sin(midRad)
-                        val labelStyle = TextStyle(
-                            fontSize = if (i == safeIndex) 10.sp else 9.sp,
-                            fontWeight = if (i == safeIndex) FontWeight.Bold else FontWeight.Medium,
-                            color = Color.White,
-                            textAlign = TextAlign.Center
-                        )
-                        val measured = textMeasurer.measure(emotion.label, labelStyle)
-                        drawText(
-                            textLayoutResult = measured,
-                            topLeft = Offset(
-                                lx - measured.size.width / 2f,
-                                ly - measured.size.height / 2f
-                            )
-                        )
-
                         // Pastille blanche sur le bord intérieur si des secondaires sont sélectionnées
+                        val midAngle = slotStart + sweepAngle / 2f
+                        val midRad = midAngle * PI.toFloat() / 180f
                         val hasSelections = selected.any { sel ->
                             secondaryByParent[emotion.id]?.any { sec -> sec.id == sel.emotion.id } == true
                         }
@@ -202,7 +241,8 @@ fun EmotionPicker(
                     modifier = Modifier
                         .size(innerRDp * 2)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surface),
+                        .background(MaterialTheme.colorScheme.surface)
+                        .nestedScroll(wheelNestedScrollConnection),
                     contentAlignment = Alignment.TopCenter
                 ) {
                     Column(
@@ -222,6 +262,7 @@ fun EmotionPicker(
                             color = activeColor.copy(alpha = 0.2f)
                         )
                         LazyColumn(
+                            state = secondaryListState,
                             modifier = Modifier.fillMaxSize(),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             contentPadding = PaddingValues(vertical = 4.dp)
@@ -309,35 +350,37 @@ private fun SecondaryEmotionRow(
     onToggle: () -> Unit,
     onIntensityChange: (Int) -> Unit
 ) {
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(horizontal = 28.dp, vertical = 2.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .then(
+                if (isSelected)
+                    Modifier.background(colorForIntensity(primaryHsl, intensity).copy(alpha = 0.16f))
+                else Modifier
+            )
             .clickable(onClick = onToggle)
-            .padding(horizontal = 6.dp, vertical = 5.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(horizontal = 10.dp, vertical = 7.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = emotion.label,
             style = MaterialTheme.typography.bodySmall.copy(
                 color = if (isSelected) colorForIntensity(primaryHsl, intensity)
                         else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
-                fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
-                textAlign = TextAlign.Center
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
             )
         )
         if (isSelected) {
-            Spacer(Modifier.height(3.dp))
             IntensityDots(
                 intensity = intensity,
                 hsl = primaryHsl,
-                dotSize = 9.dp,
+                dotSize = 8.dp,
                 onIntensityChange = onIntensityChange
             )
         }
-        HorizontalDivider(
-            modifier = Modifier.padding(top = 5.dp),
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
-        )
     }
 }
 

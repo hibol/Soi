@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import android.content.res.Configuration
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -307,7 +308,18 @@ fun NewEntryScreen(
                 EntryType.SESSION -> "Émotions"
                 EntryType.LIFE_EVENT -> "Émotions"
             }
-            Text(emotionLabel, style = MaterialTheme.typography.titleSmall)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(emotionLabel, style = MaterialTheme.typography.titleSmall)
+                Text(
+                    text = if (selectedEmotions.size <= 1) "${selectedEmotions.size} émotion" else "${selectedEmotions.size} émotions",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
+            }
             EmotionPicker(
                 primaryEmotions = primaryEmotions,
                 secondaryEmotions = secondaryEmotions,
